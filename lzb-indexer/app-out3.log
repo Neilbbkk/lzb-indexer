@@ -1,0 +1,115 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ------------------------< com.lzb:lzb-indexer >-------------------------
+[INFO] Building LZB Token Indexer 1.0.0
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot-maven-plugin:2.7.18:run (default-cli) > test-compile @ lzb-indexer >>>
+[INFO] 
+[INFO] --- maven-resources-plugin:3.2.0:resources (default-resources) @ lzb-indexer ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Using 'UTF-8' encoding to copy filtered properties files.
+[INFO] Copying 1 resource
+[INFO] Copying 1 resource
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.10.1:compile (default-compile) @ lzb-indexer ---
+[INFO] Nothing to compile - all classes are up to date
+[INFO] 
+[INFO] --- maven-resources-plugin:3.2.0:testResources (default-testResources) @ lzb-indexer ---
+[INFO] Using 'UTF-8' encoding to copy filtered resources.
+[INFO] Using 'UTF-8' encoding to copy filtered properties files.
+[INFO] skip non existing resourceDirectory D:\lzkcomp\web3\lzb-indexer\src\test\resources
+[INFO] 
+[INFO] --- maven-compiler-plugin:3.10.1:testCompile (default-testCompile) @ lzb-indexer ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] <<< spring-boot-maven-plugin:2.7.18:run (default-cli) < test-compile @ lzb-indexer <<<
+[INFO] 
+[INFO] 
+[INFO] --- spring-boot-maven-plugin:2.7.18:run (default-cli) @ lzb-indexer ---
+[INFO] Attaching agents: []
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::               (v2.7.18)
+
+2026-06-05 14:10:37.755  INFO 8848 --- [           main] com.lzb.indexer.LzbIndexerApplication    : Starting LzbIndexerApplication using Java 1.8.0_311 on lzkcomp with PID 8848 (D:\lzkcomp\web3\lzb-indexer\target\classes started by ÁºÖÇ¿µ in D:\lzkcomp\web3\lzb-indexer)
+2026-06-05 14:10:37.759  INFO 8848 --- [           main] com.lzb.indexer.LzbIndexerApplication    : No active profile set, falling back to 1 default profile: "default"
+2026-06-05 14:10:38.558  INFO 8848 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-06-05 14:10:38.636  INFO 8848 --- [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 64 ms. Found 3 JPA repository interfaces.
+2026-06-05 14:10:41.116  INFO 8848 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8080 (http)
+2026-06-05 14:10:41.127  INFO 8848 --- [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-05 14:10:41.128  INFO 8848 --- [           main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.83]
+2026-06-05 14:10:41.414  INFO 8848 --- [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-05 14:10:41.415  INFO 8848 --- [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 3594 ms
+2026-06-05 14:10:41.458  INFO 8848 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-06-05 14:10:41.640  INFO 8848 --- [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-06-05 14:10:41.656  INFO 8848 --- [           main] o.s.b.a.h2.H2ConsoleAutoConfiguration    : H2 console available at '/h2-console'. Database available at 'jdbc:h2:file:./data/lzb-indexer'
+2026-06-05 14:10:41.864  INFO 8848 --- [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-06-05 14:10:41.995  INFO 8848 --- [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 5.6.15.Final
+2026-06-05 14:10:42.134  INFO 8848 --- [           main] o.hibernate.annotations.common.Version   : HCANN000001: Hibernate Commons Annotations {5.1.2.Final}
+2026-06-05 14:10:42.233  INFO 8848 --- [           main] org.hibernate.dialect.Dialect            : HHH000400: Using dialect: org.hibernate.dialect.H2Dialect
+2026-06-05 14:10:42.851  INFO 8848 --- [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000490: Using JtaPlatform implementation: [org.hibernate.engine.transaction.jta.platform.internal.NoJtaPlatform]
+2026-06-05 14:10:42.866  INFO 8848 --- [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-06-05 14:10:45.842  INFO 8848 --- [           main] com.lzb.indexer.service.TokenService     : Wallet loaded: 0x3642287697c85eeb038c04aa00da55b059b00593
+2026-06-05 14:10:45.845  INFO 8848 --- [           main] c.lzb.indexer.scanner.ScannerScheduler   : Scanner scheduler enabled: true
+2026-06-05 14:10:46.294  WARN 8848 --- [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-06-05 14:10:47.382  INFO 8848 --- [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8080 (http) with context path ''
+2026-06-05 14:10:47.414  INFO 8848 --- [           main] com.lzb.indexer.LzbIndexerApplication    : Started LzbIndexerApplication in 10.174 seconds (JVM running for 10.854)
+2026-06-05 14:10:49.866  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10982787-10992787 (10000 blocks)
+2026-06-05 14:10:50.635  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10992787-10993053 (266 blocks)
+2026-06-05 14:10:51.027  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 3608ms, 2 cycles
+2026-06-05 14:10:52.680  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993053), 2 transfers in 257ms, 0 cycles
+2026-06-05 14:10:57.688  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993053), 2 transfers in 263ms, 0 cycles
+2026-06-05 14:11:02.677  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993053-10993054 (1 blocks)
+2026-06-05 14:11:02.937  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 515ms, 1 cycles
+2026-06-05 14:11:07.697  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993054), 2 transfers in 271ms, 0 cycles
+2026-06-05 14:11:12.676  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993054-10993055 (1 blocks)
+2026-06-05 14:11:13.020  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 596ms, 1 cycles
+2026-06-05 14:11:17.904  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993055), 2 transfers in 480ms, 0 cycles
+2026-06-05 14:11:22.674  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993055), 2 transfers in 254ms, 0 cycles
+2026-06-05 14:11:27.668  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993055-10993056 (1 blocks)
+2026-06-05 14:11:28.048  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 628ms, 1 cycles
+2026-06-05 14:11:32.672  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993056), 2 transfers in 250ms, 0 cycles
+2026-06-05 14:11:37.671  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993056-10993057 (1 blocks)
+2026-06-05 14:11:38.574  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 1157ms, 1 cycles
+2026-06-05 14:11:42.667  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993057), 2 transfers in 255ms, 0 cycles
+2026-06-05 14:11:47.677  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993057-10993058 (1 blocks)
+2026-06-05 14:11:48.023  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 601ms, 1 cycles
+2026-06-05 14:11:52.665  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993058), 2 transfers in 249ms, 0 cycles
+2026-06-05 14:11:57.683  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993058), 2 transfers in 257ms, 0 cycles
+2026-06-05 14:12:03.267  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993058), 2 transfers in 849ms, 0 cycles
+2026-06-05 14:12:07.682  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993058), 2 transfers in 259ms, 0 cycles
+2026-06-05 14:12:12.673  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993058-10993059 (1 blocks)
+2026-06-05 14:12:12.939  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 521ms, 1 cycles
+2026-06-05 14:12:17.677  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993059), 2 transfers in 255ms, 0 cycles
+2026-06-05 14:12:22.883  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993059-10993060 (1 blocks)
+2026-06-05 14:12:23.245  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 831ms, 1 cycles
+2026-06-05 14:12:27.670  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993060), 2 transfers in 251ms, 0 cycles
+2026-06-05 14:12:33.227  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993060), 2 transfers in 809ms, 0 cycles
+2026-06-05 14:12:37.679  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993060-10993061 (1 blocks)
+2026-06-05 14:12:38.030  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 606ms, 1 cycles
+2026-06-05 14:12:42.676  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993061), 2 transfers in 252ms, 0 cycles
+2026-06-05 14:12:48.226  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993061-10993062 (1 blocks)
+2026-06-05 14:12:48.586  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 1164ms, 1 cycles
+2026-06-05 14:12:52.666  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993062), 2 transfers in 252ms, 0 cycles
+2026-06-05 14:12:57.663  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993062), 2 transfers in 246ms, 0 cycles
+2026-06-05 14:13:02.882  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993062-10993063 (1 blocks)
+2026-06-05 14:13:03.228  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 812ms, 1 cycles
+2026-06-05 14:13:07.675  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993063), 2 transfers in 250ms, 0 cycles
+2026-06-05 14:13:12.687  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993063-10993064 (1 blocks)
+2026-06-05 14:13:13.032  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 617ms, 1 cycles
+2026-06-05 14:13:17.674  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993064), 2 transfers in 258ms, 0 cycles
+2026-06-05 14:13:22.896  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993064-10993065 (1 blocks)
+2026-06-05 14:13:23.243  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 817ms, 1 cycles
+2026-06-05 14:13:27.678  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993065), 2 transfers in 257ms, 0 cycles
+2026-06-05 14:13:32.679  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993065), 2 transfers in 257ms, 0 cycles
+2026-06-05 14:13:37.894  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Scanning blocks 10993065-10993066 (1 blocks)
+2026-06-05 14:13:38.255  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to tip! 2 transfers, 839ms, 1 cycles
+2026-06-05 14:13:42.668  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993066), 2 transfers in 251ms, 0 cycles
+2026-06-05 14:13:47.668  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993066), 2 transfers in 254ms, 0 cycles
+2026-06-05 14:13:52.668  INFO 8848 --- [   scheduling-1] com.lzb.indexer.scanner.BlockScanner     : Caught up to safe tip (10993066), 2 transfers in 253ms, 0 cycles

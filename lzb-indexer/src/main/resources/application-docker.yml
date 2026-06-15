@@ -1,0 +1,36 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/lzb_indexer?sslmode=disable
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: false
+
+app:
+  scanner:
+    enabled: true
+    fixed-rate-ms: 5000
+  chains:
+    - name: sepolia
+      rpc-url: "https://ethereum-sepolia.publicnode.com"
+      contract-address: "0x8f15B4F7F145f3F0B17C231746377F76f5771Be8"
+      wallet-address: "0x3642287697C85eEB038C04aA00Da55b059B00593"
+      private-key: ${ETH_PRIVATE_KEY}
+      start-block: 6900000
+      page-size: 2000
+      reorg-depth: 12
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus

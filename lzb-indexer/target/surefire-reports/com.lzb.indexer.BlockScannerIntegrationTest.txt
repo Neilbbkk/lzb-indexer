@@ -1,0 +1,4 @@
+-------------------------------------------------------------------------------
+Test set: com.lzb.indexer.BlockScannerIntegrationTest
+-------------------------------------------------------------------------------
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 24.894 s - in com.lzb.indexer.BlockScannerIntegrationTest
