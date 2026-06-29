@@ -29,7 +29,8 @@ public class ChainProperties {
     }
 
     public static class ChainConfig {
-        private String name;             // sepolia, mumbai, etc.
+        private String name;
+        private String protocol = "ERC20";        // ERC20 | GMX | GMX_VAULT | GMX_LIQUIDATOR
         private String rpcUrl;
         private String contractAddress;
         private String walletAddress;
@@ -40,6 +41,8 @@ public class ChainProperties {
 
         public String getName() { return name; }
         public void setName(String v) { this.name = v; }
+        public String getProtocol() { return protocol; }
+        public void setProtocol(String v) { this.protocol = v; }
         public String getRpcUrl() { return rpcUrl; }
         public void setRpcUrl(String v) { this.rpcUrl = v; }
         public String getContractAddress() { return contractAddress; }
@@ -54,5 +57,10 @@ public class ChainProperties {
         public void setPageSize(int v) { this.pageSize = v; }
         public int getReorgDepth() { return reorgDepth; }
         public void setReorgDepth(int v) { this.reorgDepth = v; }
+
+        /** 是否为 GMX 系列协议 */
+        public boolean isGmx() {
+            return protocol != null && protocol.startsWith("GMX");
+        }
     }
 }

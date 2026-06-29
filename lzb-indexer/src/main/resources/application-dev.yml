@@ -1,0 +1,48 @@
+# Spring profile: dev
+# 启动方式: java -jar xxx.jar --spring.profiles.active=dev
+# 或在 IDE 中设置 spring.profiles.active=dev
+# 与环境变量 SPRING_PROFILES_ACTIVE=dev
+#
+# 与 default 的区别:
+#   - 数据库: lzb_indexer_dev（与正式库完全隔离）
+#   - scanner: enabled=false（手动控制）
+#   - 链: 只配 GMX Arbitrum，不配 Sepolia 正式链
+
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/lzb_indexer_dev?sslmode=disable
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true    # dev 环境打印 SQL，方便调试
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  flyway:
+    enabled: false
+
+app:
+  scanner:
+    enabled: true    # dev 环境默认关闭，需要时手动改 true 或通过 API 触发
+    fixed-rate-ms: 5000
+
+  chains:
+    - name: arbitrum-gmx-vault
+      protocol: GMX_VAULT
+      rpc-url: "https://arb1.arbitrum.io/rpc"
+      contract-address: "0xC8ee91A54287DB53897056e12D9819156D3822Fb"
+      wallet-address: "0x0000000000000000000000000000000000000000"
+      private-key: "0x0000000000000000000000000000000000000000000000000000000000000000"
+      start-block: 450000000
+      page-size: 2000
+      reorg-depth: 12
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,env

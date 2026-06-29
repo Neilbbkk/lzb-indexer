@@ -1,4 +1,4 @@
-server:
+﻿server:
   port: 8080
 
 spring:
@@ -19,13 +19,25 @@ app:
   scanner:
     enabled: true
     fixed-rate-ms: 5000
+
   chains:
     - name: sepolia
+      protocol: ERC20
       rpc-url: "https://ethereum-sepolia.publicnode.com"
       contract-address: "0x8f15B4F7F145f3F0B17C231746377F76f5771Be8"
       wallet-address: "0x3642287697C85eEB038C04aA00Da55b059B00593"
-      private-key: "0xdcc986f7e070e7996349e26f4e4f34698d82b00da0f1bd530878b3168242bcba"
+      private-key: ${PRIVATE_KEY:}
       start-block: 6900000
+      page-size: 2000
+      reorg-depth: 12
+
+    - name: arbitrum-gmx-vault
+      protocol: GMX_VAULT
+      rpc-url: "https://arb1.arbitrum.io/rpc"
+      contract-address: "0x489ee077994B6658eAfA855C308275EAd8097C4A"
+      wallet-address: "0x0000000000000000000000000000000000000000"
+      private-key: "0x0000000000000000000000000000000000000000000000000000000000000000"
+      start-block: 450000000
       page-size: 2000
       reorg-depth: 12
 

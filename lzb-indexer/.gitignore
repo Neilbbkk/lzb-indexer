@@ -1,0 +1,43 @@
+# Build output
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Logs
+*.log
+run*.log
+scan*.log
+
+# Environment & secrets
+.env
+*.env
+
+# Database files
+data/*.db
+data/*.mv.db
+data/*.trace.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+demo/
+temp/
+tmp/
+compute-hashes.mjs
+ComputeHashes.java
+comment-test.txt
+comments.sql
+decode-line.txt
+gmx-page.html
+
+# Old notes
+PROMPT_20260628.md
+PROMPT_FULL.md
+PROMPT_UPDATED.md
+data/old_notes.txt
+data/temp_test.md

@@ -3,6 +3,12 @@ package com.lzb.indexer.domain.entity;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 
+/**
+ * 同步检查点。
+ *
+ * 记录每条链（每个合约地址）的扫描进度。
+ * 程序重启后从 last_scanned_block + 1 继续扫，不会重复扫描。
+ */
 @Entity
 @Table(name = "sync_checkpoints")
 public class SyncCheckpoint {
@@ -11,21 +17,27 @@ public class SyncCheckpoint {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** 被扫描的合约地址 */
     @Column(name = "contract_address", nullable = false, unique = true, length = 42)
     private String contractAddress;
 
+    /** 已扫描到的最新区块号 */
     @Column(name = "last_scanned_block", nullable = false)
     private Long lastScannedBlock;
 
+    /** 已扫描到的最新交易索引（预留） */
     @Column(name = "last_scanned_tx_index")
     private Integer lastScannedTxIndex;
 
+    /** 是否启用 reorg 保护 */
     @Column(name = "is_reorg_protected")
     private Boolean reorgProtected;
 
+    /** 链标识 */
     @Column(name = "chain_name", nullable = false)
     private String chainName;
 
+    /** 最后更新时间 */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

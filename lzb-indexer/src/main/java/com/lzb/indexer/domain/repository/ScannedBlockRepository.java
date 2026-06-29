@@ -17,6 +17,8 @@ public interface ScannedBlockRepository extends JpaRepository<ScannedBlock, Long
 
     List<ScannedBlock> findByChainNameOrderByBlockNumberAsc(String chainName, Pageable pageable);
 
+    boolean existsByBlockNumberAndChainName(Long blockNumber, String chainName);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM ScannedBlock s WHERE s.blockNumber >= :blockNumber AND s.chainName = :chainName")
