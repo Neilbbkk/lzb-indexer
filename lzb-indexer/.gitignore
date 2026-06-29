@@ -8,8 +8,6 @@ target/
 
 # Logs
 *.log
-run*.log
-scan*.log
 
 # Environment & secrets
 .env
@@ -24,7 +22,7 @@ data/*.trace.db
 .DS_Store
 Thumbs.db
 
-# Temp files
+# Temp / debug
 demo/
 temp/
 tmp/
@@ -34,10 +32,10 @@ comment-test.txt
 comments.sql
 decode-line.txt
 gmx-page.html
-
-# Old notes
-PROMPT_20260628.md
-PROMPT_FULL.md
-PROMPT_UPDATED.md
 data/old_notes.txt
 data/temp_test.md
+data/GMX_Vault.sol
+data/2026*.md
+
+# Old prompt backups
+PROMPT_*.md
