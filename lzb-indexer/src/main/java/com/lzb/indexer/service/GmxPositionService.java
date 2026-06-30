@@ -1,4 +1,4 @@
-package com.lzb.indexer.service;
+﻿package com.lzb.indexer.service;
 
 import com.lzb.indexer.domain.entity.GmxPosition;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
@@ -13,12 +13,12 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * GMX ?????????
+ * GMX 仓位聚合服务
  *
- * ?????? Increase / Decrease / Liquidate ??????? GmxPosition ???
- * ????????? position_key ?????? -> ?????????? -> ????
+ * 监听 Increase / Decrease / Liquidate 事件流并更新 GmxPosition 快照
+ * 核心流程：通过 position_key 查找或创建 -> 应用事件变更 -> 保存快照
  *
- * ????????????????BlockScanner?????? >= ????????????????
+ * 注意：必须保证事件按区块顺序处理（BlockScanner 已保证），否则快照会错
  */
 @Service
 public class GmxPositionService {
@@ -32,10 +32,9 @@ public class GmxPositionService {
     }
 
     /**
-     * ??????????????????
-     * ?????EventDecoder ????????????????
-     * ?????? position_key ????????????????????
-     *         ?????????
+     * 处理单个仓位事件（事件流水 -> 快照更新）
+     * EventDecoder 已对 DECREASE 事件取负，所以这里直接叠加即可
+     * 核心逻辑：根据 position_key 查找已有仓位，不存在则新建，存在则更新
      */
     @Transactional
     public void apply(GmxPositionHistory event) {
@@ -54,7 +53,7 @@ public class GmxPositionService {
         }
     }
 
-    /** ????? */
+    /** 处理加仓 */
     private void applyIncrease(GmxPositionHistory e) {
         Optional<GmxPosition> existing = positionRepo
                 .findByChainNameAndPositionKey(e.getChainName(), e.getPositionKey());
@@ -80,12 +79,12 @@ public class GmxPositionService {
     }
 
     /**
-     * ??????
-     * EventDecoder ?? sizeDelta/collateralDelta ????????????
-     * ??????????????
+     * 处理减仓
+     * EventDecoder 已对 sizeDelta/collateralDelta 取负
+     * 这里直接用负值叠加（不再重复取反，那是之前的 bug）
      */
     private void applyDecrease(GmxPositionHistory e) {
-        // EventDecoder ?? decrease ? delta ????
+        // EventDecoder 已经对 decrease 的 delta 取了负，直接用
         BigInteger negSize = e.getSizeDelta();
         BigInteger negCollateral = e.getCollateralDelta();
 
@@ -122,7 +121,7 @@ public class GmxPositionService {
         positionRepo.save(pos);
     }
 
-    /** ???????????? LIQUIDATED */
+    /** 处理清算：将 size 和 collateral 直接清零，状态标记为 LIQUIDATED */
     private void applyLiquidate(GmxPositionHistory e) {
         Optional<GmxPosition> existing = positionRepo
                 .findByChainNameAndPositionKey(e.getChainName(), e.getPositionKey());
@@ -152,7 +151,7 @@ public class GmxPositionService {
         }
     }
 
-    // ======================== ???? ========================
+    // ======================== 查询方法 ========================
 
     @Transactional(readOnly = true)
     public List<GmxPosition> getPositionsByAccount(String chainName, String account) {
