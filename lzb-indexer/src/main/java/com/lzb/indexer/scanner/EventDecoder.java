@@ -1,4 +1,4 @@
-﻿package com.lzb.indexer.scanner;
+package com.lzb.indexer.scanner;
 
 import com.lzb.indexer.domain.entity.TokenTransfer;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
@@ -38,6 +38,11 @@ public class EventDecoder {
                     new TypeReference<Uint256>(false) {}
             ));
     private static final String TRANSFER_EVENT_HASH = EventEncoder.encode(TRANSFER_EVENT);
+
+    /** 获取 Transfer 事件签名哈希（供 BlockScanner 设置 eth filter） */
+    public static String getTransferEventHash() {
+        return TRANSFER_EVENT_HASH;
+    }
 
     public boolean isTransferEvent(Log logEntry) {
         return logEntry.getTopics() != null
@@ -110,6 +115,12 @@ public class EventDecoder {
     /** 清算检测：DecreasePosition 事件中 isLiquidation flag 为 true 时判定为清算 */
     public boolean isLiquidatePositionEvent(Log logEntry) {
         return false;
+    }
+
+    /** 解码清算事件（暂未实现，返回 null） */
+    public GmxPositionHistory decodeLiquidatePosition(Log logEntry, String chainName) {
+        log.debug("LiquidatePosition event detected but not yet supported, tx={}", logEntry.getTransactionHash());
+        return null;
     }
 
     // ======================== 解码入口 ========================
@@ -249,14 +260,7 @@ public class EventDecoder {
             int itemStart = arrStart + itemOff * 2;
             if (hex.length() < itemStart + 128) break;
             // key 可能是 offset 跳转（长字符串），也可能是直接内联（短字符串如 "market"）
-            BigInteger firstSlot = bytesToBigInt(hex, itemStart);
-            String key;
-            if (firstSlot.compareTo(BigInteger.valueOf(10000)) < 0 && firstSlot.signum() > 0) {
-                int keyOff = itemStart + firstSlot.intValue() * 2;
-                key = readString(hex, keyOff);
-            } else {
-                key = readInlineString(hex, itemStart);
-            }
+            String key = readItemKey(hex, itemStart);
             // value 在 itemStart 后面 32 字节处
             BigInteger rawVal = bytesToBigInt(hex, itemStart + 64);
             String val;
@@ -290,16 +294,16 @@ public class EventDecoder {
             if (hex.length() < cursor + 64) break;
             int itemOff = bytesToBigInt(hex, cursor).intValue();
             int itemStart = arrStart + itemOff * 2;
-            if (hex.length() < itemStart + 128) break;
-            BigInteger firstSlot = bytesToBigInt(hex, itemStart);
-            String key;
-            if (firstSlot.compareTo(BigInteger.valueOf(10000)) < 0 && firstSlot.signum() > 0) {
-                int keyOff = itemStart + firstSlot.intValue() * 2;
-                key = readString(hex, keyOff);
+            if (hex.length() < itemStart + 192) break;
+            String key = readItemKey(hex, itemStart);
+            // 链上数据：item 占 4 槽（key + 0x40 标记 + 实际值），实际值在第 3 槽
+            BigInteger marker = bytesToBigInt(hex, itemStart + 64);
+            BigInteger val;
+            if (marker.compareTo(BigInteger.valueOf(10000)) < 0 && marker.signum() > 0) {
+                val = bytesToBigInt(hex, itemStart + 128);
             } else {
-                key = readInlineString(hex, itemStart);
+                val = marker;
             }
-            BigInteger val = bytesToBigInt(hex, itemStart + 64);
             if (key != null && !key.isEmpty()) {
                 result.put(key, val);
             }
@@ -320,17 +324,18 @@ public class EventDecoder {
             if (hex.length() < cursor + 64) break;
             int itemOff = bytesToBigInt(hex, cursor).intValue();
             int itemStart = arrStart + itemOff * 2;
-            if (hex.length() < itemStart + 128) break;
-            BigInteger firstSlot = bytesToBigInt(hex, itemStart);
-            String key;
-            if (firstSlot.compareTo(BigInteger.valueOf(10000)) < 0 && firstSlot.signum() > 0) {
-                int keyOff = itemStart + firstSlot.intValue() * 2;
-                key = readString(hex, keyOff);
+            if (hex.length() < itemStart + 192) break;
+            String key = readItemKey(hex, itemStart);
+            // 链上数据：item 占 4 槽，bool 值在第 3 槽
+            BigInteger boolMarker = bytesToBigInt(hex, itemStart + 64);
+            boolean val;
+            if (boolMarker.compareTo(BigInteger.valueOf(10000)) < 0 && boolMarker.signum() > 0) {
+                val = !"0000000000000000000000000000000000000000000000000000000000000000"
+                        .equals(hex.substring(itemStart + 128, itemStart + 192));
             } else {
-                key = readInlineString(hex, itemStart);
+                val = !"0000000000000000000000000000000000000000000000000000000000000000"
+                        .equals(hex.substring(itemStart + 64, itemStart + 128));
             }
-            boolean val = !"0000000000000000000000000000000000000000000000000000000000000000"
-                    .equals(hex.substring(itemStart + 64, itemStart + 128));
             if (key != null && !key.isEmpty()) {
                 result.put(key, val);
             }
@@ -351,16 +356,16 @@ public class EventDecoder {
             if (hex.length() < cursor + 64) break;
             int itemOff = bytesToBigInt(hex, cursor).intValue();
             int itemStart = arrStart + itemOff * 2;
-            if (hex.length() < itemStart + 128) break;
-            BigInteger firstSlot = bytesToBigInt(hex, itemStart);
-            String key;
-            if (firstSlot.compareTo(BigInteger.valueOf(10000)) < 0 && firstSlot.signum() > 0) {
-                int keyOff = itemStart + firstSlot.intValue() * 2;
-                key = readString(hex, keyOff);
+            if (hex.length() < itemStart + 192) break;
+            String key = readItemKey(hex, itemStart);
+            // 链上数据：item 占 4 槽，bytes32 值在第 3 槽
+            BigInteger b32Marker = bytesToBigInt(hex, itemStart + 64);
+            String val;
+            if (b32Marker.compareTo(BigInteger.valueOf(10000)) < 0 && b32Marker.signum() > 0) {
+                val = "0x" + hex.substring(itemStart + 128, itemStart + 192);
             } else {
-                key = readInlineString(hex, itemStart);
+                val = "0x" + hex.substring(itemStart + 64, itemStart + 128);
             }
-            String val = "0x" + hex.substring(itemStart + 64, itemStart + 128);
             if (key != null && !key.isEmpty()) {
                 result.put(key, val);
             }
@@ -401,6 +406,27 @@ public class EventDecoder {
         return new String(b, StandardCharsets.UTF_8);
     }
 
+
+    /**
+     * ?? item key????????? slot0???<128 ? slot3+4 ??>=128 ? readString
+     */
+    private static String readItemKey(String hex, int itemStart) {
+        BigInteger firstSlot = bytesToBigInt(hex, itemStart);
+        if (firstSlot.compareTo(BigInteger.valueOf(10000)) >= 0 || firstSlot.signum() <= 0) {
+            return readInlineString(hex, itemStart);
+        }
+        int offset = firstSlot.intValue();
+        if (offset < 128) {
+            int keyLen = bytesToBigInt(hex, itemStart + 192).intValue();
+            if (keyLen > 0 && keyLen <= 64 && hex.length() >= itemStart + 256 + keyLen * 2) {
+                byte[] kb = hexToBytes(hex.substring(itemStart + 256, itemStart + 256 + keyLen * 2));
+                return new String(kb, StandardCharsets.UTF_8);
+            }
+            return "";
+        }
+        int keyOff = itemStart + offset * 2;
+        return readString(hex, keyOff);
+    }
     private static byte[] hexToBytes(String h) {
         int n = h.length();
         byte[] b = new byte[n / 2];

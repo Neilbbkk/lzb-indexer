@@ -1,4 +1,4 @@
-﻿package com.lzb.indexer.domain.entity;
+package com.lzb.indexer.domain.entity;
 
 import javax.persistence.*;
 import java.math.BigInteger;

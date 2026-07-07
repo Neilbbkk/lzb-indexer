@@ -1,4 +1,4 @@
-﻿package com.lzb.indexer.service;
+package com.lzb.indexer.service;
 
 import com.lzb.indexer.domain.entity.GmxPosition;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
