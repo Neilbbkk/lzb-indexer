@@ -91,6 +91,9 @@ public class EventDecoder {
     /** emitEventLog2 事件签名哈希 */
     private static final String EMIT_EVENT_LOG2_HASH = "0x468a25a7ba624ceea6e540ad6f49171b52495b648417ae91bca21676d8a24dc5";
 
+    /** 测试合约 emitEventLog(address,string,bytes) 的 keccak256 */
+    private static final String EMIT_EVENT_LOG_TEST_HASH = "0xbdb3451f3fa2c91324a36875bc5d7d52a8643a7d89be9ab021abb4f14669bc88";
+
     /** keccak256("PositionIncrease") */
     private static final String POSITION_INCREASE_HASH = "0xf94196ccb31f81a3e67df18f2a62cbfb50009c80a7d3c728a3f542e3abc5cb63";
     /** keccak256("PositionDecrease") */
@@ -98,7 +101,7 @@ public class EventDecoder {
 
     public boolean isGmxV2Event(Log logEntry) {
         return logEntry.getTopics() != null && logEntry.getTopics().size() >= 2
-                && (EMIT_EVENT_LOG_HASH.equals(logEntry.getTopics().get(0))
+                && (EMIT_EVENT_LOG_HASH.equals(logEntry.getTopics().get(0)) || EMIT_EVENT_LOG_TEST_HASH.equals(logEntry.getTopics().get(0))
                  || EMIT_EVENT_LOG2_HASH.equals(logEntry.getTopics().get(0)));
     }
 
