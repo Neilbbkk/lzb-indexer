@@ -23,6 +23,7 @@ public class BlockScannerFactory {
     private final MeterRegistry meterRegistry;
     private final GmxPositionHistoryRepository gmxHistoryRepo;
     private final GmxPositionService gmxPositionService;
+    private final SyncErrorRepository syncErrorRepo;
 
     public BlockScannerFactory(EventDecoder eventDecoder,
                                TokenTransferRepository transferRepo,
@@ -30,7 +31,8 @@ public class BlockScannerFactory {
                                ScannedBlockRepository scannedBlockRepo,
                                MeterRegistry meterRegistry,
                                GmxPositionHistoryRepository gmxHistoryRepo,
-                               GmxPositionService gmxPositionService) {
+                               GmxPositionService gmxPositionService,
+                               SyncErrorRepository syncErrorRepo) {
         this.eventDecoder = eventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
@@ -38,6 +40,7 @@ public class BlockScannerFactory {
         this.meterRegistry = meterRegistry;
         this.gmxHistoryRepo = gmxHistoryRepo;
         this.gmxPositionService = gmxPositionService;
+        this.syncErrorRepo = syncErrorRepo;
     }
 
     public List<BlockScanner> createAll(ChainProperties props) {
@@ -45,7 +48,7 @@ public class BlockScannerFactory {
         for (ChainProperties.ChainConfig cfg : props.getChains()) {
             BlockScanner scanner = new BlockScanner(
                     cfg, eventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
-                    meterRegistry, gmxHistoryRepo, gmxPositionService);
+                    meterRegistry, gmxHistoryRepo, gmxPositionService, syncErrorRepo);
             scanners.add(scanner);
             log.info("Created BlockScanner for chain: {} (protocol={})", cfg.getName(), cfg.getProtocol());
         }

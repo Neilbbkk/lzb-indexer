@@ -26,15 +26,17 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 区块链扫描器，支持 ERC20 Transfer 和 GMX V2 事件。
- * 从 eth_getLogs 返回的日志中直接提取 blockHash，不再逐块 RPC 查询。
- * 内建 RPC 重试：最多 3 次，指数退避（1s / 2s / 4s）。
+ * 区块链扫描器。
+ * - 支持 ERC20 Transfer 和 GMX V2 事件
+ * - 从 eth_getLogs 直接提取 blockHash，不再逐块 RPC
+ * - 内建 RPC 重试：最多 3 次，指数退避
+ * - 异常持久化到 sync_errors 表：RPC / DECODE / DB 三类
  */
 public class BlockScanner {
 
     private static final Logger log = LoggerFactory.getLogger(BlockScanner.class);
-    private static final int MAX_RETRIES = 2;          // 最多重试 2 次（共 3 次尝试）
-    private static final long RETRY_BASE_MS = 1000L;   // 退避基数 1 秒
+    private static final int MAX_RETRIES = 2;
+    private static final long RETRY_BASE_MS = 1000L;
 
     private final String chainName;
     private final String protocol;
@@ -52,6 +54,7 @@ public class BlockScanner {
 
     private final GmxPositionHistoryRepository gmxHistoryRepo;
     private final GmxPositionService gmxPositionService;
+    private final SyncErrorRepository syncErrorRepo;
 
     private final Counter transfersFound;
     private final Counter positionsFound;
@@ -68,7 +71,8 @@ public class BlockScanner {
                         ScannedBlockRepository scannedBlockRepo,
                         MeterRegistry meterRegistry,
                         GmxPositionHistoryRepository gmxHistoryRepo,
-                        GmxPositionService gmxPositionService) {
+                        GmxPositionService gmxPositionService,
+                        SyncErrorRepository syncErrorRepo) {
         this.chainName = cfg.getName();
         this.protocol = cfg.getProtocol() != null ? cfg.getProtocol() : "ERC20";
         this.contractAddress = cfg.getContractAddress();
@@ -89,6 +93,7 @@ public class BlockScanner {
         this.meterRegistry = meterRegistry;
         this.gmxHistoryRepo = gmxHistoryRepo;
         this.gmxPositionService = gmxPositionService;
+        this.syncErrorRepo = syncErrorRepo;
 
         String prefix = "scanner." + chainName;
         this.blocksProcessed = Counter.builder(prefix + ".blocks.processed")
@@ -115,19 +120,28 @@ public class BlockScanner {
     public long getChainTip() { return chainTip; }
     public boolean isRunning() { return running; }
 
+    // ======================== 错误记录工具 ========================
+
+    private void recordError(String errorType, long blockNumber, String msg) {
+        try {
+            syncErrorRepo.save(new SyncError(chainName, blockNumber, errorType, msg));
+        } catch (Exception ignored) {
+            // 连错误表都写不进去就别递归了
+        }
+    }
+
     // ======================== RPC 重试工具 ========================
 
-    /**
-     * 带指数退避的 RPC 重试。
-     * 最多尝试 MAX_RETRIES + 1 次，每次失败后等待 1s / 2s / 4s 再重试。
-     */
     private <T> T retryRpc(Callable<T> call, String operation) throws Exception {
         for (int i = 0; i <= MAX_RETRIES; i++) {
             try {
                 return call.call();
             } catch (Exception e) {
-                if (i >= MAX_RETRIES) throw e;
-                long delay = RETRY_BASE_MS << i; // 1s, 2s, 4s
+                if (i >= MAX_RETRIES) {
+                    recordError("RPC", 0, operation + " failed after " + (MAX_RETRIES + 1) + " attempts: " + e.getMessage());
+                    throw e;
+                }
+                long delay = RETRY_BASE_MS << i;
                 log.warn("BlockScanner[{}] RPC {} failed (attempt {}/{}), retry in {}ms: {}",
                         chainName, operation, i + 1, MAX_RETRIES + 1, delay, e.getMessage());
                 Thread.sleep(delay);
@@ -141,11 +155,12 @@ public class BlockScanner {
     public void scan() {
         if (running) return;
         running = true;
+        long fromBlock = 0;
         try {
             SyncCheckpoint cp = getOrInitCheckpoint();
             chainTip = retryRpc(() ->
                     web3j.ethBlockNumber().send().getBlockNumber().longValue(), "eth_blockNumber");
-            long fromBlock = Math.max(cp.getLastScannedBlock(), startBlock - 1);
+            fromBlock = Math.max(cp.getLastScannedBlock(), startBlock - 1);
             long toBlock = Math.min(fromBlock + pageSize, chainTip);
 
             if (fromBlock >= toBlock) {
@@ -178,7 +193,8 @@ public class BlockScanner {
                 sample.stop(scanTimer);
             }
         } catch (Exception e) {
-            log.error("BlockScanner[{}] scan failed after retries: {}", chainName, e.getMessage());
+            log.error("BlockScanner[{}] scan failed: {}", chainName, e.getMessage());
+            recordError("RPC", fromBlock + 1, "scan cycle failed: " + e.getMessage());
         } finally {
             running = false;
         }
@@ -199,17 +215,24 @@ public class BlockScanner {
 
         for (EthLog.LogResult lr : logResults) {
             Log l = (Log) lr.get();
-            TokenTransfer t = eventDecoder.decode(l, chainName);
-            if (t == null) continue;
+            try {
+                TokenTransfer t = eventDecoder.decode(l, chainName);
+                if (t == null) continue;
 
-            if (transferRepo.existsByTxHashAndLogIndexAndChainName(
-                    t.getTxHash(), t.getLogIndex(), t.getChainName())) {
-                continue;
+                if (transferRepo.existsByTxHashAndLogIndexAndChainName(
+                        t.getTxHash(), t.getLogIndex(), t.getChainName())) {
+                    continue;
+                }
+
+                transferRepo.save(t);
+                transfersFound.increment();
+                transferCount++;
+            } catch (Exception e) {
+                long bn = l.getBlockNumber().longValue();
+                log.warn("BlockScanner[{}] ERC20 decode/save failed block {}: {}",
+                        chainName, bn, e.getMessage());
+                recordError("DECODE", bn, "ERC20 Transfer: " + e.getMessage());
             }
-
-            transferRepo.save(t);
-            transfersFound.increment();
-            transferCount++;
         }
         log.debug("BlockScanner[{}] ERC20: {}-{} had {} transfers", chainName, fromBlock, toBlock, transferCount);
         return logResults;
@@ -237,6 +260,7 @@ public class BlockScanner {
         int decoded = 0;
         for (EthLog.LogResult lr : logs) {
             Log l = (Log) lr.get();
+            long bn = l.getBlockNumber().longValue();
 
             if (!eventDecoder.isGmxV2Event(l)) continue;
             gmxV2Match++;
@@ -245,27 +269,33 @@ public class BlockScanner {
                         chainName, l.getTopics().get(0), l.getTopics().get(1));
             }
 
-            GmxPositionHistory event = null;
-            if (eventDecoder.isIncreasePositionEvent(l)) {
-                event = eventDecoder.decodeIncreasePosition(l, chainName);
-            } else if (eventDecoder.isDecreasePositionEvent(l)) {
-                event = eventDecoder.decodeDecreasePosition(l, chainName);
-            } else if (eventDecoder.isLiquidatePositionEvent(l)) {
-                event = eventDecoder.decodeLiquidatePosition(l, chainName);
+            try {
+                GmxPositionHistory event = null;
+                if (eventDecoder.isIncreasePositionEvent(l)) {
+                    event = eventDecoder.decodeIncreasePosition(l, chainName);
+                } else if (eventDecoder.isDecreasePositionEvent(l)) {
+                    event = eventDecoder.decodeDecreasePosition(l, chainName);
+                } else if (eventDecoder.isLiquidatePositionEvent(l)) {
+                    event = eventDecoder.decodeLiquidatePosition(l, chainName);
+                }
+
+                if (event == null) continue;
+                decoded++;
+
+                if (gmxHistoryRepo.existsByTxHashAndLogIndexAndChainName(
+                        event.getTxHash(), event.getLogIndex(), chainName)) {
+                    continue;
+                }
+
+                gmxHistoryRepo.save(event);
+                gmxPositionService.apply(event);
+                positionsFound.increment();
+                positionEventCount++;
+            } catch (Exception e) {
+                log.warn("BlockScanner[{}] GMX decode/save failed block {}: {}",
+                        chainName, bn, e.getMessage());
+                recordError("DECODE", bn, "GMX event: " + e.getMessage());
             }
-
-            if (event == null) continue;
-            decoded++;
-
-            if (gmxHistoryRepo.existsByTxHashAndLogIndexAndChainName(
-                    event.getTxHash(), event.getLogIndex(), chainName)) {
-                continue;
-            }
-
-            gmxHistoryRepo.save(event);
-            gmxPositionService.apply(event);
-            positionsFound.increment();
-            positionEventCount++;
         }
         log.info("BlockScanner[{}] GMX {}-{} v2Match={} decoded={} saved={}",
                 chainName, fromBlock, toBlock, gmxV2Match, decoded, positionEventCount);
@@ -274,10 +304,6 @@ public class BlockScanner {
 
     // ======================== 批量存储区块 Hash ========================
 
-    /**
-     * 从 eth_getLogs 返回的日志中提取 blockHash，批量入库。
-     * 不再逐块调用 eth_getBlockByNumber，一轮扫描从 ~7 分钟降到几秒。
-     */
     private void saveBlockHashesFromLogs(List<EthLog.LogResult> logResults) {
         if (logResults == null || logResults.isEmpty()) return;
 
@@ -298,8 +324,13 @@ public class BlockScanner {
         }
 
         if (!newBlocks.isEmpty()) {
-            scannedBlockRepo.saveAll(newBlocks);
-            log.info("BlockScanner[{}] saved {} new block hashes", chainName, newBlocks.size());
+            try {
+                scannedBlockRepo.saveAll(newBlocks);
+                log.info("BlockScanner[{}] saved {} new block hashes", chainName, newBlocks.size());
+            } catch (Exception e) {
+                log.error("BlockScanner[{}] DB saveAll failed: {}", chainName, e.getMessage());
+                recordError("DB", newBlocks.get(0).getBlockNumber(), "saveAll block hashes: " + e.getMessage());
+            }
         }
     }
 
