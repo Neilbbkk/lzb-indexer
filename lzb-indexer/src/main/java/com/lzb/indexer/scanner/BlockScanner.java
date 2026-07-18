@@ -18,24 +18,23 @@ import org.web3j.protocol.http.HttpService;
 import okhttp3.OkHttpClient;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 区块扫描器。
- *
- * 支持两种协议：
- *   ERC20   — 扫 Transfer 事件，存入 token_transfers
- *   GMX*    — 扫 PositionIncrease / PositionDecrease 事件，
- *             存入 gmx_position_history，并通过 GmxPositionService 更新 gmx_positions
- *
- * 每一种 ChainConfig 创建独立 scanner，共享同一个 EventDecoder 和 Repository。
+ * 区块链扫描器，支持 ERC20 Transfer 和 GMX V2 事件。
+ * 从 eth_getLogs 返回的日志中直接提取 blockHash，不再逐块 RPC 查询。
+ * 内建 RPC 重试：最多 3 次，指数退避（1s / 2s / 4s）。
  */
 public class BlockScanner {
 
     private static final Logger log = LoggerFactory.getLogger(BlockScanner.class);
+    private static final int MAX_RETRIES = 2;          // 最多重试 2 次（共 3 次尝试）
+    private static final long RETRY_BASE_MS = 1000L;   // 退避基数 1 秒
 
     private final String chainName;
     private final String protocol;
@@ -80,6 +79,7 @@ public class BlockScanner {
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(30, TimeUnit.SECONDS)
+                .retryOnConnectionFailure(true)
                 .build();
         this.web3j = Web3j.build(new HttpService(cfg.getRpcUrl(), httpClient));
         this.eventDecoder = eventDecoder;
@@ -115,14 +115,36 @@ public class BlockScanner {
     public long getChainTip() { return chainTip; }
     public boolean isRunning() { return running; }
 
-    // ======================== 主循环 ========================
+    // ======================== RPC 重试工具 ========================
+
+    /**
+     * 带指数退避的 RPC 重试。
+     * 最多尝试 MAX_RETRIES + 1 次，每次失败后等待 1s / 2s / 4s 再重试。
+     */
+    private <T> T retryRpc(Callable<T> call, String operation) throws Exception {
+        for (int i = 0; i <= MAX_RETRIES; i++) {
+            try {
+                return call.call();
+            } catch (Exception e) {
+                if (i >= MAX_RETRIES) throw e;
+                long delay = RETRY_BASE_MS << i; // 1s, 2s, 4s
+                log.warn("BlockScanner[{}] RPC {} failed (attempt {}/{}), retry in {}ms: {}",
+                        chainName, operation, i + 1, MAX_RETRIES + 1, delay, e.getMessage());
+                Thread.sleep(delay);
+            }
+        }
+        throw new RuntimeException("unreachable");
+    }
+
+    // ======================== 扫描主循环 ========================
 
     public void scan() {
         if (running) return;
         running = true;
         try {
             SyncCheckpoint cp = getOrInitCheckpoint();
-            chainTip = web3j.ethBlockNumber().send().getBlockNumber().longValue();
+            chainTip = retryRpc(() ->
+                    web3j.ethBlockNumber().send().getBlockNumber().longValue(), "eth_blockNumber");
             long fromBlock = Math.max(cp.getLastScannedBlock(), startBlock - 1);
             long toBlock = Math.min(fromBlock + pageSize, chainTip);
 
@@ -135,15 +157,16 @@ public class BlockScanner {
             try {
                 log.info("BlockScanner[{}] fetching logs for blocks {}-{}", chainName, fromBlock + 1, toBlock);
 
+                List<EthLog.LogResult> logResults;
                 if (protocol.equals("ERC20")) {
-                    processErc20Events(fromBlock, toBlock);
+                    logResults = processErc20Events(fromBlock, toBlock);
                 } else if (protocol.startsWith("GMX")) {
-                    processGmxEvents(fromBlock, toBlock);
+                    logResults = processGmxEvents(fromBlock, toBlock);
+                } else {
+                    logResults = new ArrayList<>();
                 }
 
-                for (long b = fromBlock + 1; b <= toBlock; b++) {
-                    saveBlockHash(b);
-                }
+                saveBlockHashesFromLogs(logResults);
 
                 blocksProcessed.increment(toBlock - fromBlock);
                 latestScannedBlock = toBlock;
@@ -155,25 +178,26 @@ public class BlockScanner {
                 sample.stop(scanTimer);
             }
         } catch (Exception e) {
-            log.error("BlockScanner[{}] scan failed: {}", chainName, e.getMessage());
+            log.error("BlockScanner[{}] scan failed after retries: {}", chainName, e.getMessage());
         } finally {
             running = false;
         }
     }
 
-    // ======================== ERC20 事件处理 ========================
+    // ======================== ERC20 Transfer 事件处理 ========================
 
-    private void processErc20Events(long fromBlock, long toBlock) throws Exception {
+    private List<EthLog.LogResult> processErc20Events(long fromBlock, long toBlock) throws Exception {
         EthFilter filter = new EthFilter(
                 new DefaultBlockParameterNumber(fromBlock),
                 new DefaultBlockParameterNumber(toBlock),
                 contractAddress);
         filter.addOptionalTopics(EventDecoder.getTransferEventHash());
 
-        EthLog ethLog = web3j.ethGetLogs(filter).send();
+        EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
+        List<EthLog.LogResult> logResults = ethLog.getLogs();
         int transferCount = 0;
 
-        for (EthLog.LogResult lr : ethLog.getLogs()) {
+        for (EthLog.LogResult lr : logResults) {
             Log l = (Log) lr.get();
             TokenTransfer t = eventDecoder.decode(l, chainName);
             if (t == null) continue;
@@ -188,23 +212,24 @@ public class BlockScanner {
             transferCount++;
         }
         log.debug("BlockScanner[{}] ERC20: {}-{} had {} transfers", chainName, fromBlock, toBlock, transferCount);
+        return logResults;
     }
 
-    // ======================== GMX 事件处理（V2） ========================
+    // ======================== GMX V2 事件处理 ========================
 
-    private void processGmxEvents(long fromBlock, long toBlock) throws Exception {
+    private List<EthLog.LogResult> processGmxEvents(long fromBlock, long toBlock) throws Exception {
         EthFilter filter = new EthFilter(
                 new DefaultBlockParameterNumber(fromBlock),
                 new DefaultBlockParameterNumber(toBlock),
                 contractAddress);
 
-        EthLog ethLog = web3j.ethGetLogs(filter).send();
+        EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
         if (ethLog.hasError()) {
             log.warn("BlockScanner[{}] ethGetLogs error: {}", chainName, ethLog.getError().getMessage());
-            return;
+            return new ArrayList<>();
         }
         List<EthLog.LogResult> logs = ethLog.getLogs();
-        if (logs == null || logs.isEmpty()) return;
+        if (logs == null || logs.isEmpty()) return new ArrayList<>();
         log.info("BlockScanner[{}] GMX {}-{} got {} raw logs", chainName, fromBlock, toBlock, logs.size());
 
         int positionEventCount = 0;
@@ -244,21 +269,37 @@ public class BlockScanner {
         }
         log.info("BlockScanner[{}] GMX {}-{} v2Match={} decoded={} saved={}",
                 chainName, fromBlock, toBlock, gmxV2Match, decoded, positionEventCount);
+        return logs;
     }
 
-    // ======================== 区块 Hash ========================
+    // ======================== 批量存储区块 Hash ========================
 
-    private void saveBlockHash(long blockNumber) {
-        try {
-            if (scannedBlockRepo.existsByBlockNumberAndChainName(blockNumber, chainName)) return;
-            EthBlock.Block block = web3j.ethGetBlockByNumber(
-                    new DefaultBlockParameterNumber(blockNumber), false).send().getBlock();
-            if (block != null) {
-                scannedBlockRepo.save(new ScannedBlock(blockNumber, block.getHash(), chainName));
+    /**
+     * 从 eth_getLogs 返回的日志中提取 blockHash，批量入库。
+     * 不再逐块调用 eth_getBlockByNumber，一轮扫描从 ~7 分钟降到几秒。
+     */
+    private void saveBlockHashesFromLogs(List<EthLog.LogResult> logResults) {
+        if (logResults == null || logResults.isEmpty()) return;
+
+        Map<Long, ScannedBlock> unique = new LinkedHashMap<>();
+        for (EthLog.LogResult lr : logResults) {
+            Log l = (Log) lr.get();
+            long bn = l.getBlockNumber().longValue();
+            if (!unique.containsKey(bn)) {
+                unique.put(bn, new ScannedBlock(bn, l.getBlockHash(), chainName));
             }
-        } catch (Exception e) {
-            log.warn("BlockScanner[{}] save block hash failed {}: {}",
-                    chainName, blockNumber, e.getMessage());
+        }
+
+        List<ScannedBlock> newBlocks = new ArrayList<>();
+        for (ScannedBlock sb : unique.values()) {
+            if (!scannedBlockRepo.existsByBlockNumberAndChainName(sb.getBlockNumber(), chainName)) {
+                newBlocks.add(sb);
+            }
+        }
+
+        if (!newBlocks.isEmpty()) {
+            scannedBlockRepo.saveAll(newBlocks);
+            log.info("BlockScanner[{}] saved {} new block hashes", chainName, newBlocks.size());
         }
     }
 
