@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LZB Indexer — 链上数据仪表盘</title>
+<style>
+  :root {
+    --bg: #06060e;
+    --card-bg: #0e0e1a;
+    --card-border: #1a1a30;
+    --cyan: #00e5ff;
+    --magenta: #e040fb;
+    --green: #00e676;
+    --yellow: #ffab00;
+    --red: #ff1744;
+    --text: #d8dce6;
+    --text-bright: #f0f2f8;
+    --muted: #78788e;
+    --glass: rgba(14, 14, 26, 0.85);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Microsoft YaHei','PingFang SC','Inter','Segoe UI',system-ui,-apple-system,sans-serif;
+    min-height:100vh; overflow-x:hidden; line-height:1.6;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* 星空 */
+  .stars { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+  .stars canvas { display:block; }
+  /* 光晕 */
+  .glow-orb { position:fixed; border-radius:50%; filter:blur(120px); pointer-events:none; z-index:0; opacity:0.06; }
+  .orb-1 { width:600px; height:600px; background:var(--cyan); top:-200px; left:10%; }
+  .orb-2 { width:500px; height:500px; background:var(--magenta); bottom:-200px; right:5%; }
+  .orb-3 { width:400px; height:400px; background:var(--green); top:40%; left:60%; }
+
+  /* === HEADER === */
+  .header {
+    position:relative; z-index:2; padding:24px 36px 0;
+    display:flex; align-items:center; justify-content:space-between;
+    flex-wrap:wrap; gap:16px;
+  }
+  .logo-wrap { display:flex; align-items:center; gap:14px; }
+  .logo-icon {
+    width:44px; height:44px; border-radius:14px;
+    background:linear-gradient(135deg,var(--cyan),var(--magenta));
+    display:flex; align-items:center; justify-content:center;
+    font-size:20px; font-weight:900; color:#0a0a14;
+    box-shadow:0 0 24px rgba(0,229,255,0.3);
+  }
+  .logo-text h1 { font-size:22px; font-weight:800; letter-spacing:-0.5px; color:var(--text-bright); }
+  .logo-text span { font-size:11px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:16px; }
+  .status-badge {
+    display:flex; align-items:center; gap:8px;
+    padding:8px 18px; border-radius:24px; background:var(--glass);
+    border:1px solid var(--card-border); backdrop-filter:blur(12px); font-size:13px;
+  }
+  .status-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 10px var(--green); animation:pulse 2s ease-in-out infinite;
+  }
+  .status-dot.off { background:var(--red); box-shadow:0 0 10px var(--red); animation:none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .refresh-time { font-size:12px; color:var(--muted); }
+
+  /* === MAIN === */
+  .main { position:relative; z-index:2; padding:20px 36px 40px; display:grid; grid-template-columns:repeat(4,1fr); gap:18px; }
+
+  /* 统计卡片 */
+  .stat-card {
+    grid-column:span 1; background:var(--glass); border:1px solid var(--card-border);
+    border-radius:16px; padding:20px; backdrop-filter:blur(12px);
+    transition:all 0.3s ease; position:relative; overflow:hidden;
+  }
+  .stat-card:hover { border-color:rgba(0,229,255,0.25); transform:translateY(-2px); box-shadow:0 0 20px rgba(0,229,255,0.10); }
+  .stat-card::after {
+    content:''; position:absolute; top:0; right:0; width:80px; height:80px;
+    background:radial-gradient(circle,rgba(0,229,255,0.06) 0%,transparent 70%);
+    border-radius:0 0 0 80px;
+  }
+  .stat-label { font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--muted); margin-bottom:6px; }
+  .stat-value { font-size:38px; font-weight:800; font-family:'JetBrains Mono','SF Mono','Cascadia Code',monospace; }
+  .stat-value.cyan { background:linear-gradient(135deg,var(--cyan),#80f0ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .stat-value.magenta { background:linear-gradient(135deg,var(--magenta),#f080ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .stat-value.green { background:linear-gradient(135deg,var(--green),#80ffb0); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .stat-value.red { background:linear-gradient(135deg,var(--red),#ff8090); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+
+  /* 链状态 */
+  .chains-row { grid-column:1/-1; display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  .chain-card {
+    background:var(--glass); border:1px solid var(--card-border);
+    border-radius:16px; padding:20px; backdrop-filter:blur(12px);
+    transition:all 0.3s ease; position:relative; overflow:hidden;
+  }
+  .chain-card:hover { border-color:rgba(0,229,255,0.2); box-shadow:0 0 20px rgba(0,229,255,0.10); }
+  .chain-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .chain-name { font-size:17px; font-weight:700; color:var(--text-bright); }
+  .chain-protocol { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-top:2px; }
+  .badge { padding:3px 12px; border-radius:12px; font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+  .badge-scanning { background:rgba(0,230,118,0.12); color:var(--green); }
+  .badge-idle { background:rgba(255,171,0,0.12); color:var(--yellow); }
+  .progress-wrap { height:4px; background:rgba(255,255,255,0.05); border-radius:2px; margin:12px 0; overflow:hidden; }
+  .progress-bar {
+    height:100%; border-radius:2px;
+    background:linear-gradient(90deg,var(--cyan),var(--magenta));
+    transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
+    box-shadow:0 0 8px rgba(0,229,255,0.3);
+  }
+  .chain-stats { display:flex; justify-content:space-between; font-size:12px; color:var(--muted); }
+  .chain-stats b { color:var(--text-bright); font-weight:600; }
+
+  /* === 事件表格卡片 (全宽) === */
+  .events-card {
+    grid-column:1/-1; background:var(--glass); border:1px solid var(--card-border);
+    border-radius:16px; backdrop-filter:blur(12px); overflow:hidden;
+  }
+
+  /* Tab 导航 */
+  .tab-nav {
+    display:flex; border-bottom:1px solid var(--card-border);
+    padding:0 20px; background:rgba(0,0,0,0.2);
+  }
+  .tab-btn {
+    padding:14px 24px; font-size:14px; font-weight:700;
+    color:var(--muted); background:none; border:none; cursor:pointer;
+    border-bottom:2px solid transparent; transition:all 0.25s;
+    letter-spacing:0.5px; position:relative;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--cyan); border-bottom-color:var(--cyan); }
+  .tab-btn .tab-badge {
+    display:inline-block; margin-left:8px; padding:1px 8px; border-radius:10px;
+    font-size:10px; font-weight:700; background:rgba(0,229,255,0.1); color:var(--cyan);
+    transition:all 0.3s;
+  }
+  .tab-btn.active .tab-badge { background:rgba(0,229,255,0.18); }
+  .tab-btn .new-dot {
+    display:none; width:6px; height:6px; border-radius:50%;
+    background:var(--green); position:absolute; top:10px; right:6px;
+    box-shadow:0 0 6px var(--green);
+  }
+  .tab-btn .new-dot.show { display:block; }
+
+  /* 表格区域 */
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+  .table-header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 20px 10px;
+  }
+  .table-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:2px; color:var(--cyan); }
+  .table-meta { display:flex; align-items:center; gap:12px; }
+  .table-count {
+    font-size:11px; color:var(--muted); padding:3px 10px; border-radius:10px;
+    background:rgba(0,229,255,0.06); border:1px solid rgba(0,229,255,0.1);
+  }
+  .live-indicator {
+    font-size:10px; color:var(--green); display:flex; align-items:center; gap:4px;
+  }
+  .live-indicator::before {
+    content:''; width:5px; height:5px; border-radius:50%; background:var(--green);
+    box-shadow:0 0 6px var(--green); animation:pulse 2s ease-in-out infinite;
+  }
+
+  .table-wrap { max-height:420px; overflow-y:auto; overflow-x:auto; }
+  .table-wrap::-webkit-scrollbar { width:4px; height:4px; }
+  .table-wrap::-webkit-scrollbar-thumb { background:var(--card-border); border-radius:2px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th {
+    text-align:left; padding:10px; border-bottom:1px solid var(--card-border);
+    color:var(--muted); font-weight:600; text-transform:uppercase;
+    letter-spacing:0.5px; font-size:11px; white-space:nowrap;
+    position:sticky; top:0; background:#0e0e1a; z-index:1;
+  }
+  td { padding:11px 10px; border-bottom:1px solid rgba(255,255,255,0.03); white-space:nowrap; }
+  tr.row-new { animation:rowIn 0.5s ease-out; }
+  @keyframes rowIn {
+    from { background:rgba(0,229,255,0.12); opacity:0.5; transform:translateY(-4px); }
+    to { background:transparent; opacity:1; transform:translateY(0); }
+  }
+  tr:hover td { background:rgba(0,229,255,0.03); }
+
+  .mono { font-family:'JetBrains Mono','SF Mono','Cascadia Code',monospace; font-size:12px; }
+  .addr { color:var(--cyan); }
+  .amount-in { color:var(--green); }
+  .amount-out { color:var(--red); }
+  .hash { color:var(--muted); font-size:11px; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:8px; font-size:10px; font-weight:700; }
+  .tag-increase { background:rgba(0,230,118,0.12); color:var(--green); }
+  .tag-decrease { background:rgba(255,23,68,0.12); color:var(--red); }
+  .tag-liquidate { background:rgba(224,64,251,0.12); color:var(--magenta); }
+  .tag-long { background:rgba(0,229,255,0.1); color:var(--cyan); }
+  .tag-short { background:rgba(255,171,0,0.1); color:var(--yellow); }
+  .empty-state { text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty-state .icon { font-size:40px; margin-bottom:10px; opacity:0.4; }
+
+  /* 新数据通知 */
+  .toast {
+    position:fixed; bottom:24px; right:24px; z-index:100;
+    padding:10px 18px; border-radius:10px; font-size:12px; font-weight:600;
+    background:rgba(0,230,118,0.15); border:1px solid rgba(0,230,118,0.3);
+    color:var(--green); transform:translateY(80px); opacity:0;
+    transition:all 0.35s ease; pointer-events:none;
+  }
+  .toast.show { transform:translateY(0); opacity:1; }
+
+  /* FOOTER */
+  .footer {
+    position:relative; z-index:2; text-align:center; padding:20px;
+    font-size:11px; color:var(--muted); border-top:1px solid var(--card-border);
+  }
+
+  @media(max-width:1200px){.main{grid-template-columns:repeat(2,1fr)}.chains-row{grid-template-columns:1fr}.stat-card{grid-column:span 1}}
+  @media(max-width:768px){.main{grid-template-columns:1fr;padding:16px}.chains-row{grid-template-columns:1fr}.stat-card{grid-column:span 1}.header{padding:16px}}
+</style>
+<!-- SockJS + STOMP -->
+<script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7/bundles/stomp.umd.min.js"></script>
+</head>
+<body>
+
+<div class="glow-orb orb-1"></div><div class="glow-orb orb-2"></div><div class="glow-orb orb-3"></div>
+<div class="stars"><canvas id="starsCanvas"></canvas></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <div class="logo-icon">⛓</div>
+    <div class="logo-text"><h1>LZB Indexer</h1><span>Multi-Chain Event Scanner</span></div>
+  </div>
+  <div class="header-right">
+    <div class="status-badge"><div class="status-dot" id="connDot"></div><span id="connText">已连接</span></div>
+    <span class="refresh-time" id="refreshTime">--</span>
+  </div>
+</div>
+
+<div class="main">
+  <!-- 统计 -->
+  <div class="stat-card"><div class="stat-label">ERC20 转账</div><div class="stat-value cyan" id="statTransfers">--</div></div>
+  <div class="stat-card"><div class="stat-label">GMX 历史</div><div class="stat-value magenta" id="statGmx">--</div></div>
+  <div class="stat-card"><div class="stat-label">Uniswap Swaps</div><div class="stat-value green" id="statSwaps">--</div></div>
+  <div class="stat-card"><div class="stat-label">同步错误</div><div class="stat-value red" id="statErrors">--</div></div>
+
+  <!-- 链状态 -->
+  <div class="chains-row" id="chainsContainer"></div>
+
+  <!-- 事件面板：Tab 切换 -->
+  <div class="events-card">
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="transfers">
+        💸 Transfers<span class="tab-badge" id="badge-transfers">0</span><span class="new-dot" id="dot-transfers"></span>
+      </button>
+      <button class="tab-btn" data-tab="swaps">
+        🔄 Swaps<span class="tab-badge" id="badge-swaps">0</span><span class="new-dot" id="dot-swaps"></span>
+      </button>
+      <button class="tab-btn" data-tab="gmx">
+        📊 GMX<span class="tab-badge" id="badge-gmx">0</span><span class="new-dot" id="dot-gmx"></span>
+      </button>
+    </div>
+
+    <!-- Transfers 面板 -->
+    <div class="tab-panel active" id="panel-transfers">
+      <div class="table-header">
+        <div class="table-title">Sepolia · ERC20 Token Transfers</div>
+        <div class="table-meta">
+          <span class="live-indicator">LIVE</span>
+          <span class="table-count" id="count-transfers">0 条</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>区块</th><th>TxHash</th><th>From</th><th>To</th><th style="text-align:right">数量</th></tr></thead><tbody id="body-transfers"></tbody></table>
+      </div>
+    </div>
+
+    <!-- Swaps 面板 -->
+    <div class="tab-panel" id="panel-swaps">
+      <div class="table-header">
+        <div class="table-title">Ethereum · Uniswap V2 WETH/USDC</div>
+        <div class="table-meta">
+          <span class="live-indicator">LIVE</span>
+          <span class="table-count" id="count-swaps">0 条</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>区块</th><th>TxHash</th><th>Sender</th><th>To</th><th style="text-align:right">amount0In</th><th style="text-align:right">amount1In</th><th style="text-align:right">amount0Out</th><th style="text-align:right">amount1Out</th></tr></thead><tbody id="body-swaps"></tbody></table>
+      </div>
+    </div>
+
+    <!-- GMX 面板 -->
+    <div class="tab-panel" id="panel-gmx">
+      <div class="table-header">
+        <div class="table-title">Arbitrum · GMX V2 Position Events</div>
+        <div class="table-meta">
+          <span class="live-indicator">LIVE</span>
+          <span class="table-count" id="count-gmx">0 条</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>类型</th><th>资产</th><th>区块</th><th>账户</th><th>方向</th><th style="text-align:right">Size Δ</th><th style="text-align:right">Collateral Δ</th></tr></thead><tbody id="body-gmx"></tbody></table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="footer">LZB Indexer © 2026 | Sepolia ERC20 | Arbitrum GMX V2 | Ethereum Uniswap V2 | Spring Boot + Web3j + PostgreSQL</div>
+
+<script>
+// ==================== 星空背景 ====================
+(function(){
+  var c=document.getElementById('starsCanvas'),ctx=c.getContext('2d'),stars=[],w,h;
+  function rs(){w=c.width=window.innerWidth;h=c.height=window.innerHeight;}
+  rs();window.addEventListener('resize',rs);
+  for(var i=0;i<120;i++) stars.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*1.5+.5,s:Math.random()*.3+.1,a:Math.random()*.6+.2,p:Math.random()*Math.PI*2});
+  (function d(){ctx.clearRect(0,0,w,h);var t=Date.now()*.001;
+    for(var i=0;i<stars.length;i++){var s=stars[i];ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fillStyle='rgba(200,210,240,'+Math.max(.1,s.a+Math.sin(t*2+s.p)*.2)+')';ctx.fill();s.y+=s.s;if(s.y>h+5){s.y=-5;s.x=Math.random()*w;}}
+    requestAnimationFrame(d);
+  })();
+})();
+
+// ==================== 工具 ====================
+function fmtAddr(a){if(!a||a.length<10)return a||'-';return '<span class="mono addr" title="'+a+'">'+a.slice(0,6)+'...'+a.slice(-4)+'</span>';}
+function fmtHash(h){if(!h||h.length<10)return '-';return '<span class="mono hash" title="'+h+'">'+h.slice(0,6)+'..'+h.slice(-4)+'</span>';}
+function fmtNum(n){if(n===null||n===undefined)return'--';if(typeof n==='string')n=parseFloat(n);if(n>=1e9)return(n/1e9).toFixed(1)+'B';if(n>=1e6)return(n/1e6).toFixed(1)+'M';if(n>=1e3)return(n/1e3).toFixed(1)+'K';return n.toLocaleString();}
+function fmtBigInt(val,dec,sym){if(!val||val==='0')return'0';var r=parseFloat(val)/Math.pow(10,dec||18);if(r>=1)return r.toFixed(4)+' '+(sym||'');return r.toFixed(6)+' '+(sym||'');}
+function fmtGmxSize(v){var d=parseFloat(v)/1e30;if(d>=1000)return'$'+(d/1000).toFixed(1)+'K';return'$'+d.toFixed(2);}
+function fmtCollateral(v){return fmtGmxSize(v);}
+// 常见代币地址 → 名称映射（GMX indexToken / collateralToken）
+var TOKEN_NAMES={
+  '0x82af49447d8a07e3bd95bd0d56f35241523fbab1':'WETH',
+  '0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f':'WBTC',
+  '0xaf88d065e77c8cc2239327c5edb3a432268e5831':'USDC',
+  '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8':'USDC.e',
+  '0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9':'USDT',
+  '0xda10009cbd5d07dd0cecc66161fc93d7c9000da1':'DAI',
+  '0x912ce59144191c1204e64559fe8253a0e49e6548':'ARB',
+  '0xf97f4df75117a78c1a5a0dbb814af92458539fb4':'LINK',
+  '0x17fc002b466eec40dae837fc4be5c67993ddbd6f':'FRAX',
+  '0xc8ee91a54287db53897056e12d9819156d3822fb':'GMX_Vault'
+};
+function fmtToken(addr){
+  if(!addr)return'-';
+  var key=addr.toLowerCase();
+  if(TOKEN_NAMES[key])return '<span class="tag tag-long" title="'+addr+'">'+TOKEN_NAMES[key]+'</span>';
+  return fmtAddr(addr);
+}
+
+// ==================== Tab 切换 ====================
+var activeTab='transfers';
+document.querySelectorAll('.tab-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    var tab=this.dataset.tab;
+    if(tab===activeTab)return;
+    document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+    this.classList.add('active');
+    document.getElementById('panel-'+tab).classList.add('active');
+    activeTab=tab;
+    // 隐藏未读点
+    document.getElementById('dot-'+tab).classList.remove('show');
+    // 切过来时立即刷新一次
+    fetchTabData(tab);
+  });
+});
+
+// ==================== 增量渲染引擎 ====================
+// 缓存：{transfers:{keys:Map, rows:Map}, swaps:{...}, gmx:{...}}
+var cache={transfers:null,swaps:null,gmx:null};
+
+function rowKey(tab,item){
+  if(tab==='transfers'||tab==='swaps') return (item.txHash||'')+'|'+item.blockNumber+'|'+(item.logIndex||0);
+  if(tab==='gmx') return (item.txHash||'')+'|'+item.blockNumber+'|'+(item.logIndex||0);
+  return (item.txHash||'')+'|'+item.blockNumber;
+}
+
+function renderRow(tab,item){
+  if(tab==='transfers'){
+    return '<tr data-key="'+rowKey(tab,item)+'">'+
+      '<td class="mono">'+(item.blockNumber||'-').toLocaleString()+'</td>'+
+      '<td>'+fmtHash(item.txHash)+'</td>'+
+      '<td>'+fmtAddr(item.from)+'</td>'+
+      '<td>'+fmtAddr(item.to)+'</td>'+
+      '<td class="mono amount-in" style="text-align:right">'+(item.valueFormatted||'-')+'</td></tr>';
+  }
+  if(tab==='swaps'){
+    return '<tr data-key="'+rowKey(tab,item)+'">'+
+      '<td class="mono">'+(item.blockNumber||'-').toLocaleString()+'</td>'+
+      '<td>'+fmtHash(item.txHash)+'</td>'+
+      '<td>'+fmtAddr(item.sender)+'</td>'+
+      '<td>'+fmtAddr(item.receiver)+'</td>'+
+      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount0In,18,'WETH')+'</td>'+
+      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount1In,6,'USDC')+'</td>'+
+      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount0Out,18,'WETH')+'</td>'+
+      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount1Out,6,'USDC')+'</td></tr>';
+  }
+  if(tab==='gmx'){
+    var tt='';var et=item.eventType;
+    if(et==='INCREASE')tt='<span class="tag tag-increase">开仓</span>';
+    else if(et==='DECREASE')tt='<span class="tag tag-decrease">平仓</span>';
+    else if(et==='LIQUIDATE')tt='<span class="tag tag-liquidate">爆仓</span>';
+    else tt='<span class="tag">'+(et||'?')+'</span>';
+    var dt=item.isLong?'<span class="tag tag-long">多</span>':'<span class="tag tag-short">空</span>';
+    return '<tr data-key="'+rowKey(tab,item)+'">'+
+      '<td>'+tt+'</td>'+
+      '<td>'+fmtToken(item.indexToken)+'</td>'+
+      '<td class="mono">'+(item.blockNumber||'-').toLocaleString()+'</td>'+
+      '<td>'+fmtAddr(item.account)+'</td>'+
+      '<td>'+dt+'</td>'+
+      '<td class="mono" style="text-align:right">'+fmtGmxSize(item.sizeDelta)+'</td>'+
+      '<td class="mono" style="text-align:right">'+fmtCollateral(item.collateralDelta)+'</td></tr>';
+  }
+  return '';
+}
+
+// 增量更新核心：对比缓存，只动变化行
+function diffRender(tab,newItems,total){
+  var tbody=document.getElementById('body-'+tab);
+  var countEl=document.getElementById('count-'+tab);
+  var badgeEl=document.getElementById('badge-'+tab);
+
+  countEl.textContent=newItems.length+' 条 / 共 '+fmtNum(total);
+  badgeEl.textContent=fmtNum(total);
+
+  // 首次加载 / 缓存为空 → 全量渲染
+  if(!cache[tab]||!cache[tab].keys){
+    var html=newItems.map(function(it){return renderRow(tab,it);}).join('');
+    if(!html)html='<tr><td colspan="10"><div class="empty-state"><div class="icon">📭</div>暂无数据</td></tr>';
+    tbody.innerHTML=html;
+    cache[tab]={keys:new Set(),rows:new Map()};
+    newItems.forEach(function(it){cache[tab].keys.add(rowKey(tab,it));cache[tab].rows.set(rowKey(tab,it),it);});
+    return;
+  }
+
+  // 构建新数据 key 集合
+  var newKeys=new Set();
+  var newMap=new Map();
+  newItems.forEach(function(it){var k=rowKey(tab,it);newKeys.add(k);newMap.set(k,it);});
+
+  var oldKeys=cache[tab].keys;
+  var newCount=0;
+
+  // 1. 移除旧行（在新数据中不存在的 key）
+  var rows=tbody.querySelectorAll('tr[data-key]');
+  rows.forEach(function(row){
+    if(!newKeys.has(row.dataset.key)){
+      row.style.opacity='0';
+      row.style.transform='translateX(-8px)';
+      row.style.transition='all 0.25s';
+      setTimeout(function(){if(row.parentNode)row.parentNode.removeChild(row);},250);
+    }
+  });
+
+  // 2. 插入新行（在旧缓存中不存在的 key），插入到正确位置（按倒序）
+  var existingRows=tbody.querySelectorAll('tr[data-key]');
+  var existingKeys=new Set();
+  existingRows.forEach(function(r){existingKeys.add(r.dataset.key);});
+
+  newItems.forEach(function(item,idx){
+    var k=rowKey(tab,item);
+    if(!oldKeys.has(k)){
+      newCount++;
+      var tr=document.createElement('tr');
+      tr.setAttribute('data-key',k);
+      tr.className='row-new';
+      tr.innerHTML=renderRow(tab,item).replace('<tr data-key="'+k+'">','').replace('</tr>','');
+      // 找到应该插入的位置
+      var inserted=false;
+      var allRows=tbody.querySelectorAll('tr[data-key]');
+      for(var i=0;i<allRows.length;i++){
+        var rk=allRows[i].dataset.key;
+        var ri=newMap.get(rk);
+        var ci=newMap.get(k);
+        if(ri&&ci&&ci.blockNumber>=ri.blockNumber){
+          tbody.insertBefore(tr,allRows[i]);
+          inserted=true;break;
+        }
+      }
+      if(!inserted)tbody.appendChild(tr);
+    }
+  });
+
+  // 更新缓存
+  cache[tab]={keys:newKeys,rows:newMap};
+
+  // 显示新数据通知
+  if(newCount>0){
+    showToast(tab,newCount);
+    // 如果不在当前 tab，显示红点
+    if(tab!==activeTab){
+      document.getElementById('dot-'+tab).classList.add('show');
+    }
+  }
+}
+
+function showToast(tab,count){
+  var names={transfers:'转账',swaps:'Swap',gmx:'GMX 事件'};
+  var el=document.getElementById('toast');
+  el.textContent='+'+count+' 条新 '+names[tab];
+  el.classList.add('show');
+  clearTimeout(el._timeout);
+  el._timeout=setTimeout(function(){el.classList.remove('show');},2000);
+}
+
+// ==================== 数据获取 ====================
+function fetchTabData(tab){
+  if(tab==='transfers'){
+    fetch('/api/transfers/recent?chain=sepolia&limit=15').then(function(r){return r.json();}).then(function(d){
+      diffRender('transfers',d.items||[],d.total||0);
+    }).catch(function(e){console.error('Transfers:',e);});
+  }else if(tab==='swaps'){
+    fetch('/api/swaps/recent?chain=ethereum-uniswap&limit=15').then(function(r){return r.json();}).then(function(d){
+      diffRender('swaps',d.items||[],d.total||0);
+    }).catch(function(e){console.error('Swaps:',e);});
+  }else if(tab==='gmx'){
+    fetch('/api/gmx/history/recent?chain=arbitrum-gmx-vault&limit=15').then(function(r){return r.json();}).then(function(d){
+      diffRender('gmx',d.items||[],d.total||0);
+    }).catch(function(e){console.error('GMX:',e);});
+  }
+}
+
+function fetchAllTabs(){
+  fetchTabData('transfers');
+  fetchTabData('swaps');
+  fetchTabData('gmx');
+}
+
+// ==================== 总览 ====================
+function fetchOverview(){
+  fetch('/api/dashboard/overview').then(function(r){if(!r.ok)throw Error('HTTP '+r.status);return r.json();}).then(function(d){
+    var t=d.totals||{};
+    document.getElementById('statTransfers').textContent=fmtNum(t.transfers);
+    document.getElementById('statGmx').textContent=fmtNum(t.gmxHistory);
+    document.getElementById('statSwaps').textContent=fmtNum(t.swaps);
+    document.getElementById('statErrors').textContent=fmtNum(t.errors);
+    renderChains(d.chains||[]);
+    setConnected(true);
+  }).catch(function(e){console.error(e);setConnected(false);});
+}
+
+function setConnected(ok){
+  var dot=document.getElementById('connDot'),txt=document.getElementById('connText');
+  dot.className='status-dot'+(ok?'':' off');
+  txt.textContent=ok?'已连接':'断开';
+  document.getElementById('refreshTime').textContent=new Date().toLocaleTimeString();
+}
+
+function renderChains(chains){
+  var c=document.getElementById('chainsContainer');
+  if(!chains||!chains.length){c.innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:24px">暂无扫描器运行</div>';return;}
+  c.innerHTML=chains.map(function(ch){
+    var pct=Math.min(ch.progressPercent||0,100);
+    var gap=(ch.chainTip||0)-(ch.latestScannedBlock||0);
+    return '<div class="chain-card">'+
+      '<div class="chain-top"><div><div class="chain-name">'+(ch.chain==='sepolia'?'🔷':ch.chain==='ethereum-uniswap'?'💎':'🔵')+' '+ch.chain+'</div><div class="chain-protocol">'+ch.protocol+'</div></div>'+
+      '<span class="badge '+(ch.running?'badge-scanning':'badge-idle')+'">'+(ch.running?'SCANNING':'IDLE')+'</span></div>'+
+      '<div class="progress-wrap"><div class="progress-bar" style="width:'+pct+'%"></div></div>'+
+      '<div class="chain-stats"><span>已扫: <b>'+(ch.latestScannedBlock||0).toLocaleString()+'</b></span><span>链顶: <b>'+(ch.chainTip||0).toLocaleString()+'</b></span><span>进度: <b style="color:var(--cyan)">'+pct.toFixed(1)+'%</b></span><span>'+(gap>0?'落后 '+gap.toLocaleString()+' 块':'已追上')+'</span></div></div>';
+  }).join('');
+}
+
+// ==================== WebSocket STOMP ====================
+var stompClient = null;
+var wsConnected = false;
+
+function connectWebSocket() {
+  var socket = new SockJS('/ws');
+  stompClient = Stomp.over(socket);
+  stompClient.debug = null;
+  stompClient.connect({}, function() {
+    wsConnected = true;
+    console.log('WebSocket 已连接');
+    stompClient.subscribe('/topic/events', function(msg) {
+      try {
+        var body = JSON.parse(msg.body);
+        var tab = body.tab || 'transfers';
+        showToast(tab, body.count || 0);
+        fetchTabData(tab);
+        fetchOverview();
+      } catch(e) { console.error('WS:', e); }
+    });
+  }, function() {
+    wsConnected = false;
+    console.log('WebSocket 断开, 5s 后重连...');
+    setTimeout(connectWebSocket, 5000);
+  });
+}
+
+// ==================== 初始化 ====================
+fetchOverview();
+fetchAllTabs();
+connectWebSocket();
+
+// 总览 5s 轮询; 表格 30s 兜底（WebSocket 断时才用）
+setInterval(fetchOverview, 5000);
+setInterval(function() {
+  if (!wsConnected) fetchAllTabs();
+}, 30000);
+</script>
+</body>
+</html>

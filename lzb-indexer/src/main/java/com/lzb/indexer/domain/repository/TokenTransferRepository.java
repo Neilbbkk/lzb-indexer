@@ -31,4 +31,7 @@ public interface TokenTransferRepository extends JpaRepository<TokenTransfer, Lo
     boolean existsByTxHashAndLogIndexAndChainName(String txHash, Integer logIndex, String chainName);
 
     long countByChainName(String chainName);
+
+    /** 按区块号倒序分页查询，用于 Dashboard 最近转账 */
+    Page<TokenTransfer> findByChainNameOrderByBlockNumberDesc(String chainName, Pageable pageable);
 }

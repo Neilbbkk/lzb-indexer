@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 区块链扫描器。
- * - 支持 ERC20 Transfer 和 GMX V2 事件
+ * - 支持 ERC20 Transfer、GMX V2 仓位、Uniswap V2 Swap 三种协议
  * - 从 eth_getLogs 直接提取 blockHash，不再逐块 RPC
  * - 内建 RPC 重试：最多 3 次，指数退避
  * - 异常持久化到 sync_errors 表：RPC / DECODE / DB 三类
@@ -54,10 +54,12 @@ public class BlockScanner {
 
     private final GmxPositionHistoryRepository gmxHistoryRepo;
     private final GmxPositionService gmxPositionService;
+    private final SwapEventRepository swapEventRepo;
     private final SyncErrorRepository syncErrorRepo;
 
     private final Counter transfersFound;
     private final Counter positionsFound;
+    private final Counter swapsFound;
     private final Counter blocksProcessed;
     private final Timer scanTimer;
 
@@ -72,6 +74,7 @@ public class BlockScanner {
                         MeterRegistry meterRegistry,
                         GmxPositionHistoryRepository gmxHistoryRepo,
                         GmxPositionService gmxPositionService,
+                        SwapEventRepository swapEventRepo,
                         SyncErrorRepository syncErrorRepo) {
         this.chainName = cfg.getName();
         this.protocol = cfg.getProtocol() != null ? cfg.getProtocol() : "ERC20";
@@ -93,6 +96,7 @@ public class BlockScanner {
         this.meterRegistry = meterRegistry;
         this.gmxHistoryRepo = gmxHistoryRepo;
         this.gmxPositionService = gmxPositionService;
+        this.swapEventRepo = swapEventRepo;
         this.syncErrorRepo = syncErrorRepo;
 
         String prefix = "scanner." + chainName;
@@ -101,6 +105,8 @@ public class BlockScanner {
         this.transfersFound = Counter.builder(prefix + ".transfers.found")
                 .register(meterRegistry);
         this.positionsFound = Counter.builder(prefix + ".positions.found")
+                .register(meterRegistry);
+        this.swapsFound = Counter.builder(prefix + ".swaps.found")
                 .register(meterRegistry);
         this.scanTimer = Timer.builder(prefix + ".scan.duration")
                 .register(meterRegistry);
@@ -120,17 +126,15 @@ public class BlockScanner {
     public long getChainTip() { return chainTip; }
     public boolean isRunning() { return running; }
 
-    // ======================== 错误记录工具 ========================
+    // ======================== 错误记录 ========================
 
     private void recordError(String errorType, long blockNumber, String msg) {
         try {
             syncErrorRepo.save(new SyncError(chainName, blockNumber, errorType, msg));
-        } catch (Exception ignored) {
-            // 连错误表都写不进去就别递归了
-        }
+        } catch (Exception ignored) {}
     }
 
-    // ======================== RPC 重试工具 ========================
+    // ======================== RPC 重试 ========================
 
     private <T> T retryRpc(Callable<T> call, String operation) throws Exception {
         for (int i = 0; i <= MAX_RETRIES; i++) {
@@ -138,7 +142,7 @@ public class BlockScanner {
                 return call.call();
             } catch (Exception e) {
                 if (i >= MAX_RETRIES) {
-                    recordError("RPC", 0, operation + " failed after " + (MAX_RETRIES + 1) + " attempts: " + e.getMessage());
+                    recordError("RPC", 0, operation + " failed: " + e.getMessage());
                     throw e;
                 }
                 long delay = RETRY_BASE_MS << i;
@@ -175,6 +179,8 @@ public class BlockScanner {
                 List<EthLog.LogResult> logResults;
                 if (protocol.equals("ERC20")) {
                     logResults = processErc20Events(fromBlock, toBlock);
+                } else if (protocol.equals("UNISWAP_V2")) {
+                    logResults = processUniswapEvents(fromBlock, toBlock);
                 } else if (protocol.startsWith("GMX")) {
                     logResults = processGmxEvents(fromBlock, toBlock);
                 } else {
@@ -200,7 +206,7 @@ public class BlockScanner {
         }
     }
 
-    // ======================== ERC20 Transfer 事件处理 ========================
+    // ======================== ERC20 Transfer ========================
 
     private List<EthLog.LogResult> processErc20Events(long fromBlock, long toBlock) throws Exception {
         EthFilter filter = new EthFilter(
@@ -235,10 +241,54 @@ public class BlockScanner {
             }
         }
         log.debug("BlockScanner[{}] ERC20: {}-{} had {} transfers", chainName, fromBlock, toBlock, transferCount);
+        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "transfer", transferCount));
         return logResults;
     }
 
-    // ======================== GMX V2 事件处理 ========================
+    // ======================== Uniswap V2 Swap ========================
+
+    /**
+     * 处理 Uniswap V2 Pair 合约的 Swap 事件。
+     * 过滤 topic0 = keccak256("Swap(address,uint256,uint256,uint256,uint256,address)")。
+     */
+    private List<EthLog.LogResult> processUniswapEvents(long fromBlock, long toBlock) throws Exception {
+        EthFilter filter = new EthFilter(
+                new DefaultBlockParameterNumber(fromBlock),
+                new DefaultBlockParameterNumber(toBlock),
+                contractAddress);
+        filter.addOptionalTopics(EventDecoder.getSwapEventHash());
+
+        EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
+        List<EthLog.LogResult> logResults = ethLog.getLogs();
+        int swapCount = 0;
+
+        for (EthLog.LogResult lr : logResults) {
+            Log l = (Log) lr.get();
+            long bn = l.getBlockNumber().longValue();
+            try {
+                SwapEvent swap = eventDecoder.decodeSwap(l, chainName);
+                if (swap == null) continue;
+
+                if (swapEventRepo.existsByTxHashAndLogIndexAndChainName(
+                        swap.getTxHash(), swap.getLogIndex(), swap.getChainName())) {
+                    continue;
+                }
+
+                swapEventRepo.save(swap);
+                swapsFound.increment();
+                swapCount++;
+            } catch (Exception e) {
+                log.warn("BlockScanner[{}] Uniswap decode/save failed block {}: {}",
+                        chainName, bn, e.getMessage());
+                recordError("DECODE", bn, "Uniswap Swap: " + e.getMessage());
+            }
+        }
+        log.info("BlockScanner[{}] Uniswap {}-{} had {} swaps", chainName, fromBlock, toBlock, swapCount);
+        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "swap", swapCount));
+        return logResults;
+    }
+
+    // ======================== GMX V2 ========================
 
     private List<EthLog.LogResult> processGmxEvents(long fromBlock, long toBlock) throws Exception {
         EthFilter filter = new EthFilter(
@@ -299,10 +349,11 @@ public class BlockScanner {
         }
         log.info("BlockScanner[{}] GMX {}-{} v2Match={} decoded={} saved={}",
                 chainName, fromBlock, toBlock, gmxV2Match, decoded, positionEventCount);
+        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "gmx", positionEventCount));
         return logs;
     }
 
-    // ======================== 批量存储区块 Hash ========================
+    // ======================== 批量存区块 Hash ========================
 
     private void saveBlockHashesFromLogs(List<EthLog.LogResult> logResults) {
         if (logResults == null || logResults.isEmpty()) return;
@@ -364,6 +415,8 @@ public class BlockScanner {
 
             if (protocol.equals("ERC20")) {
                 transferRepo.deleteByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
+            } else if (protocol.equals("UNISWAP_V2")) {
+                swapEventRepo.deleteByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
             } else if (protocol.startsWith("GMX")) {
                 gmxHistoryRepo.deleteByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
             }
