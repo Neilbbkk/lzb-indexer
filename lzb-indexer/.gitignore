@@ -39,3 +39,17 @@ data/2026*.md
 
 # Old prompt backups
 PROMPT_*.md
+
+# Postgres 数据目录（本地数据库，禁止入库）
+pgdata/
+
+# Node 依赖（ethers 脚本用，重新 npm install 即可）
+node_modules/
+
+# Foundry 构建产物
+src/test/solidity/out/
+src/test/solidity/cache/
+src/test/solidity/broadcast/
+
+# 个人路线图（含钱包、薪资等敏感信息，不入库）
+ROADMAP.md

@@ -6,9 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.web3j.protocol.core.methods.response.Log;
 
 import java.math.BigInteger;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -21,7 +23,7 @@ import static org.mockito.Mockito.*;
  */
 class EventDecoderTest {
 
-    private final EventDecoder decoder = new EventDecoder();
+    private final EventDecoder decoder = new EventDecoder(Collections.emptyList());
 
     /** emitEventLog 签名哈希 */
     private static final String EMIT_EVENT_LOG_HASH =
@@ -86,8 +88,7 @@ class EventDecoderTest {
     @Test
     @DisplayName("解码真实 PositionIncrease 事件 — 字段值全部正确")
     void testDecodeIncreasePosition() throws Exception {
-        String hexData = new String(
-                Files.readAllBytes(Paths.get("eth_getLogs_data.txt"))).trim();
+        String hexData = readTestData("/eth_getLogs_data.txt");
 
         Log log = mock(Log.class);
         when(log.getTopics()).thenReturn(Arrays.asList(
@@ -175,5 +176,18 @@ class EventDecoderTest {
         Log log = mock(Log.class);
         when(log.getTopics()).thenReturn(Arrays.asList(EMIT_EVENT_LOG_HASH, "0xdead"));
         assertNull(decoder.decodeIncreasePosition(log, "arbitrum"));
+    }
+
+    /** 从 classpath 读取真实链上日志数据 */
+    private static String readTestData(String resource) throws Exception {
+        try (InputStream in = EventDecoderTest.class.getResourceAsStream(resource)) {
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) != -1) {
+                bos.write(buf, 0, n);
+            }
+            return new String(bos.toByteArray(), StandardCharsets.UTF_8).trim();
+        }
     }
 }
