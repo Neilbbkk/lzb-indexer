@@ -18,11 +18,15 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
- * 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灪閸犲棝鏌ㄥ┑鍡樺窛闁搞劍濞婇弻娑㈡晲鎼达絽甯ㄧ紓浣戒含濡剧ⅵC20 Transfer 濠?GMX V2 濠电偛顕慨鐢稿箰妞嬪海绀婇柛娑卞枤椤╂煡鎮楅敐鍌涙珕妞?
+ * Decodes on-chain event logs into domain entities:
+ * - ERC20 Transfer
+ * - Uniswap V2 Swap
+ * - GMX V2 position events (via the custom EventEmitter ABI)
  *
- * GMX V2 濠电偠鎻紞鈧繛澶嬫礋瀵?EventEmitter 闂備礁鎲￠懝楣冩偋韫囨洍鍋撶憴鍕枙闁诡垰鍟村畷鐔碱敍濡も偓娴滅偓鎱ㄥΟ鍧楀摵闁哄棗绻愰湁婵犲﹤鍠氶崕搴㈢箾?emitEventLog/emitEventLog2 闂備礁鎲￠悷锕傚垂閻㈠憡鍎嶉柣妯款嚙缁犮儵鏌嶈閸撶喎顕ｉ崹顐㈢窞濠㈣泛鐬煎▓銈嗙箾?
- * 闂傚倷绶￠崑鍛┍閾忚宕?topic[1] 闂?eventNameHash 闂備礁鎲￠悧鏇㈠箹椤愶箑鍨傞幖娣灮椤╂煡鎮楅敐鍌涙珕妞ゆ劗鏅槐鎺楊敃閵夘喖娈梺?
- * 闂佽崵鍠愰悷杈╁緤閸ф鍋夋繝濠傜墛閻掑鏌￠崟顐ょ閻㈩垰妫濋弻娑㈠煛閸曨兙鈧啰绱?EventUtils.EventLogData 缂傚倸鍊烽悞锕傚箰婵犳碍鍊垫い鏍ㄧ⊕婵挳鏌熼崹顔碱伀缂佲偓婢舵劖鐓欓梻鍫熶緱閸庡繐鈹戦瑙勬珖闁逞屽墮濠€閬嶅磻閻旇偐宓?ABI 闂佽崵鍠愰悷杈╁緤閸ф鍋?
+ * GMX V2 emits all position events through the EventEmitter contract using
+ * emitEventLog / emitEventLog2. The actual event name is identified by the
+ * eventNameHash in topic[1], and the payload is a custom ABI-encoded
+ * EventUtils.EventLogData struct, which must be parsed manually.
  */
 @Component
 public class EventDecoder implements EventHandler {
@@ -114,15 +118,15 @@ public class EventDecoder implements EventHandler {
         }
     }
 
-    // ======================== GMX V2 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灪鐎氭岸鏌涢埄鍐炬當闁?========================
+    // ======================== GMX V2 Event Decoding ========================
 
-    /** emitEventLog 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灮妞规娊鏌熼鍡楀閳ь剚濞婇弻娑樷攽閸℃瑥顣虹紓?*/
+    /** EventLog (0x7e3b...) / EventLog1 (0x137a...) topic0 hashes, verified against Arbitrum mainnet. */
     private static final String EMIT_EVENT_LOG_HASH   = "0x7e3bde2ba7aca4a8499608ca57f3b0c1c1c93ace63ffd3741a9fab204146fc9a";
     private static final String EMIT_EVENT_LOG1_HASH  = "0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160";
-    /** emitEventLog2 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灮妞规娊鏌熼鍡楀閳ь剚濞婇弻娑樷攽閸℃瑥顣虹紓?*/
+    /** EventLog2 topic0: eventNameHash + topic1 + topic2 are indexed. */
     private static final String EMIT_EVENT_LOG2_HASH = "0x468a25a7ba624ceea6e540ad6f49171b52495b648417ae91bca21676d8a24dc5";
 
-    /** 婵犵數鍋炲娆擃敄閸儲鍎婃い鏍仜鐟欙箓鏌涢鐘茬仼妞?emitEventLog(address,string,bytes) 闂?keccak256 */
+    /** keccak256 of the GMX event name string, matched against topic[1]. */
     /** keccak256("PositionIncrease") */
     private static final String POSITION_INCREASE_HASH = "0xf94196ccb31f81a3e67df18f2a62cbfb50009c80a7d3c728a3f542e3abc5cb63";
     /** keccak256("PositionDecrease") */
@@ -156,7 +160,7 @@ public class EventDecoder implements EventHandler {
         return null;
     }
 
-    // ======================== 闂佽崵鍠愰悷杈╁緤閸ф鍋夋繝濠傜墕缁€鍌炴煏婢跺牆鍔氱紓?========================
+    // ======================== GMX V2 Position Decoding ========================
 
     public GmxPositionHistory decodeIncreasePosition(Log logEntry, String chainName) {
         if (!isIncreasePositionEvent(logEntry)) return null;
@@ -169,9 +173,9 @@ public class EventDecoder implements EventHandler {
     }
 
     /**
-     * 闂備礁鎼粔鍫曗€﹂崼銏㈢处闁告挆鍕瀭闂佹寧绻傚ú銊╁垂閹惰姤鐓涢柛灞剧箥濞兼劗鐥鐐靛煟闁轰礁绉撮～婵嬵敃閵堝洨鍘鹃梻浣告啞椤洭宕版惔顭掔稏闁归偊鍘鹃々鏌ユ倵閿濆倹娅嗘い鎰矙閺岋繝宕橀敃鈧崝姘辩磼缂佹ɑ鈷愮紒瀣樀椤㈡﹢鎮㈡搴♀偓鎺楁⒑閸涘﹦鎳勯柣妤佹⒒閸掓帡濡搁敂钘夘€撻悗骞垮劚鐎氼亞鎹㈤崱娑欑厵?
+     * Decode a position event into a history record using the custom EventLogData layout.
      *
-     * @param negate 闂備礁鎲￠崹鐢垫崲鐎ｎ剙鍨濋柕濞炬櫅缁秹鏌熼鐐蹭喊闁哥喎楠搁埥?true闂備焦瀵х粙鎴︽嚐椤栫偞鍎?sizeDelta/collateralDelta 闂備礁鎲￠悷锕傛偋閻愮數鐭?
+     * @param negate true to negate sizeDelta/collateralDelta (DECREASE events).
      */
     private GmxPositionHistory decodePosition(Log logEntry, String eventType, String chainName,
                                                boolean negate) {
@@ -207,7 +211,7 @@ public class EventDecoder implements EventHandler {
             BigInteger fee = uints.getOrDefault("positionFeeAmount", BigInteger.ZERO);
             boolean isLong = bools.getOrDefault("isLong", false);
 
-            // 婵犵數鍋為幐鎼佸箠閹扮増鍋╁┑鐘宠壘缁€鍡涙煏閸繃鍣介柡?
+            // DECREASE + isLiquidation flag => LIQUIDATE event type
             boolean isLiquidation = bools.getOrDefault("isLiquidation", false);
             String resolvedEventType = eventType;
             if ("DECREASE".equals(eventType) && isLiquidation) {
@@ -269,7 +273,7 @@ public class EventDecoder implements EventHandler {
             log.debug("EventLogData edOffChar={} relOff={}", edOffChar, Arrays.toString(relOff));
         }
 
-        // 闂傚倷鐒﹂崕瀹犮亹閻愮數绠旈柛灞句緱濞堢晫鈧厜鍋撻柛鎰典簼椤秹姊洪幐搴ｂ姇鐎光偓閹间礁纾块悗闈涙憸绾鹃箖鏌ょ喊鍗炲妞わ絽銈搁弻娑橆潩椤掑倸鈪遍柣搴ｆ嚀绾绢參鍩€椤掍胶鈯曟い銊ユ椤㈡瑧浠︽穱鍙樼盎闂佸憡绻傜€氼喚鍠婂鍛?addr[0] uint[1] int[2] bool[3] bytes32[4]
+        // relOff indices: addr[0] uint[1] int[2] bool[3] bytes32[4]
         parseAddrKV(hex, edOffChar + relOff[0] * 2, addr);
         parseUintKV(hex, edOffChar + relOff[1] * 2, uints);
         parseBoolKV(hex, edOffChar + relOff[3] * 2, bools);
@@ -473,7 +477,7 @@ public class EventDecoder implements EventHandler {
     }
 
 
-    // ======================== Uniswap V2 Swap 閻熸瑱绲块悥?========================
+    // ======================== Uniswap V2 Swap ========================
 
     /** Uniswap V2 Swap topic0 = keccak256("Swap(address,uint256,uint256,uint256,uint256,address)") */
     private static final Event SWAP_EVENT = new Event("Swap",
@@ -487,16 +491,17 @@ public class EventDecoder implements EventHandler {
             ));
     private static final String SWAP_EVENT_HASH = EventEncoder.encode(SWAP_EVENT);
 
-    /** 闁兼儳鍢茶ぐ?Swap 濞存粌顑勫▎?topic0闁挎稑濂旂欢?eth_getLogs 閺夆晛娲﹂幎銈嗘媴鐠恒劍鏆?*/
+    /** Swap topic0 hash used by eth_getLogs filter. */
     public static String getSwapEventHash() {
         return SWAP_EVENT_HASH;
     }
 
     /**
-     * 閻熸瑱绲块悥?Uniswap V2 Swap 濞存粌顑勫▎銏ゅ籍閵夈儳绠堕柕?     * event Swap(address indexed sender, uint256 amount0In, uint256 amount1In,
+     * Decode a Uniswap V2 Swap log.
+     * event Swap(address indexed sender, uint256 amount0In, uint256 amount1In,
      *            uint256 amount0Out, uint256 amount1Out, address indexed to);
      * topics[0] = event hash, topics[1] = sender, topics[2] = to
-     * data = amount0In + amount1In + amount0Out + amount1Out (闁?32 閻庢稒顨夋俊?
+     * data = amount0In + amount1In + amount0Out + amount1Out (each 32 bytes).
      */
     public SwapEvent decodeSwap(Log logEntry, String chainName) {
         if (logEntry.getTopics().size() < 3) return null;
@@ -527,3 +532,4 @@ public class EventDecoder implements EventHandler {
         }
     }
 }
+
