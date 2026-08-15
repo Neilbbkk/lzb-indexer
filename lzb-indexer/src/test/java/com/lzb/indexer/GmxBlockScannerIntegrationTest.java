@@ -1,5 +1,8 @@
 package com.lzb.indexer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lzb.indexer.domain.entity.GmxPosition;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
 import com.lzb.indexer.domain.repository.GmxPositionHistoryRepository;
@@ -50,6 +53,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class GmxBlockScannerIntegrationTest {
 
+    private static final Logger log = LoggerFactory.getLogger(GmxBlockScannerIntegrationTest.class);
+
     private static final String ANVIL_RPC = "http://localhost:8545";
     private static final String CHAIN_NAME = "anvil-gmx";
     private static final String PROTOCOL = "GMX_VAULT";
@@ -88,7 +93,7 @@ public class GmxBlockScannerIntegrationTest {
         }
 
         contractAddress = deployContract();
-        System.out.println("GMX test contract deployed at: " + contractAddress);
+        log.info("GMX test contract deployed at: {}", contractAddress);
 
         registry.add("app.chains[0].name",             () -> CHAIN_NAME);
         registry.add("app.chains[0].protocol",          () -> PROTOCOL);
@@ -174,7 +179,7 @@ public class GmxBlockScannerIntegrationTest {
                 CHAIN_NAME, Numeric.toHexString(POSITION_KEY.getValue()));
         assertTrue(pos.isPresent(), "应创建持仓记录");
         assertEquals(GmxPosition.Status.OPEN, pos.get().getStatus());
-        System.out.println("TEST1 PASSED: position OPEN, size=" + pos.get().getSize());
+        log.info("TEST1 PASSED: position OPEN, size={}", pos.get().getSize());
     }
 
     // ======================== 测试 2：全平 → CLOSED ========================
@@ -209,7 +214,7 @@ public class GmxBlockScannerIntegrationTest {
         assertTrue(pos.isPresent());
         assertEquals(GmxPosition.Status.CLOSED, pos.get().getStatus(),
                 "全平后状态应为 CLOSED");
-        System.out.println("TEST2 PASSED: position CLOSED");
+        log.info("TEST2 PASSED: position CLOSED");
     }
 
     // ======================== 测试 3：重开 → 爆仓 ========================
@@ -270,7 +275,7 @@ public class GmxBlockScannerIntegrationTest {
         assertTrue(liquidated.isPresent());
         assertEquals(GmxPosition.Status.LIQUIDATED, liquidated.get().getStatus(),
                 "爆仓后状态应为 LIQUIDATED");
-        System.out.println("TEST3 PASSED: position LIQUIDATED");
+        log.info("TEST3 PASSED: position LIQUIDATED");
     }
 
     // ======================== 辅助方法 ========================

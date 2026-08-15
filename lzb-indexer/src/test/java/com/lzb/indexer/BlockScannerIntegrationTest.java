@@ -1,5 +1,8 @@
 package com.lzb.indexer;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lzb.indexer.domain.entity.ScannedBlock;
 import com.lzb.indexer.domain.entity.TokenTransfer;
 import com.lzb.indexer.domain.repository.ScannedBlockRepository;
@@ -48,6 +51,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")                                                  // 加载 application-test.yml：H2 内存库 + scanner 关闭自动调度
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)                    // 按 @Order 注解顺序执行，保证测试间状态可预测
 public class BlockScannerIntegrationTest {
+
+    private static final Logger log = LoggerFactory.getLogger(BlockScannerIntegrationTest.class);
 
     // ======================== Anvil 环境常量 ========================
 
@@ -112,7 +117,7 @@ public class BlockScannerIntegrationTest {
         // --- 2. 部署 TestToken 合约 + 多挖 3 个块让链有足够历史 ---
         contractAddress = deployContract();
         mineExtraBlocks();
-        System.out.println("Contract deployed at: " + contractAddress);
+        log.info("Contract deployed at: {}", contractAddress);
 
         // --- 3. 完整注册 chains[0] 全部属性（见上方【关键】注释） ---
         registry.add("app.chains[0].name",              () -> CHAIN_NAME);
@@ -152,8 +157,8 @@ public class BlockScannerIntegrationTest {
             byte[] signed = TransactionEncoder.signMessage(tx, dummy);
             web3j.ethSendRawTransaction(Numeric.toHexString(signed)).send();
         }
-        System.out.println("Mined 3 extra blocks, chain tip: "
-                + web3j.ethBlockNumber().send().getBlockNumber());
+        log.info("Mined 3 extra blocks, chain tip: {}",
+                web3j.ethBlockNumber().send().getBlockNumber());
     }
 
     /**
@@ -221,14 +226,16 @@ public class BlockScannerIntegrationTest {
     @Test
     @Order(1)
     @DisplayName("扫 Anvil 链应发现合约部署时的 mint Transfer")
-    void testScanFindsMint() {
+    void testScanFindsMint() throws Exception {
         // 首次扫描：从 start-block=0 开始，扫到链当前高度（约 block 4-5）
         blockScanner.scan();
 
-        // 查询 0~10 块范围内所有 Transfer，按块号升序
+        // 查询 0~当前链高范围内所有 Transfer，按块号升序
+        // （不写死 0~10：GMX 集成测试可能先跑，Anvil 已有更高区块）
         List<TokenTransfer> transfers = transferRepo
                 .findByChainNameAndBlockNumberBetweenOrderByBlockNumberAsc(
-                        CHAIN_NAME, 0L, 10L);
+                        CHAIN_NAME, 0L,
+                        web3j.ethBlockNumber().send().getBlockNumber().longValue());
 
         assertFalse(transfers.isEmpty(),
                 "至少应扫到一笔 mint Transfer");

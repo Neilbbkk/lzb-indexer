@@ -1,5 +1,8 @@
 package com.lzb.indexer.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lzb.indexer.domain.entity.GmxPosition;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
 import com.lzb.indexer.domain.repository.GmxPositionRepository;
@@ -28,6 +31,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest
 @Import(GmxPositionService.class)
 class GmxPositionServiceTest {
+
+    private static final Logger log = LoggerFactory.getLogger(GmxPositionServiceTest.class);
 
     @Autowired
     private TestEntityManager em;
@@ -86,11 +91,11 @@ class GmxPositionServiceTest {
         assertFalse(p.getIsLong());
         assertEquals(new BigInteger("2577354250"), p.getSize());
         assertEquals(new BigInteger("16756925009361970894660490769"), p.getCollateral());
-        assertEquals(GmxPosition.Status.OPEN.name(), p.getStatus());
+        assertEquals(GmxPosition.Status.OPEN, p.getStatus());
         assertEquals(Long.valueOf(100L), p.getEntryBlock());
         assertEquals(TX, p.getEntryTx());
 
-        System.out.println("TEST1 PASSED: INCREASE -> OPEN, size=" + p.getSize());
+        log.info("TEST1 PASSED: INCREASE -> OPEN, size={}", p.getSize());
     }
 
     // ======================== INCREASE + DECREASE → CLOSED ========================
@@ -117,10 +122,10 @@ class GmxPositionServiceTest {
 
         Optional<GmxPosition> pos = positionRepo.findByChainNameAndPositionKey(CHAIN, POS_KEY);
         assertTrue(pos.isPresent());
-        assertEquals(GmxPosition.Status.CLOSED.name(), pos.get().getStatus());
+        assertEquals(GmxPosition.Status.CLOSED, pos.get().getStatus());
         assertTrue(pos.get().getSize().compareTo(BigInteger.ZERO) <= 0);
 
-        System.out.println("TEST2 PASSED: INCREASE + DECREASE -> CLOSED");
+        log.info("TEST2 PASSED: INCREASE + DECREASE -> CLOSED");
     }
 
     // ======================== 部分平仓 ========================
@@ -148,10 +153,10 @@ class GmxPositionServiceTest {
 
         Optional<GmxPosition> pos = positionRepo.findByChainNameAndPositionKey(CHAIN, POS_KEY);
         assertTrue(pos.isPresent());
-        assertEquals(GmxPosition.Status.OPEN.name(), pos.get().getStatus());
+        assertEquals(GmxPosition.Status.OPEN, pos.get().getStatus());
         assertEquals(new BigInteger("3000000000"), pos.get().getSize());
 
-        System.out.println("TEST3 PASSED: 部分平仓 -> 仍 OPEN, size=" + pos.get().getSize());
+        log.info("TEST3 PASSED: 部分平仓 -> 仍 OPEN, size={}", pos.get().getSize());
     }
 
     // ======================== LIQUIDATE ========================
@@ -178,10 +183,10 @@ class GmxPositionServiceTest {
 
         Optional<GmxPosition> pos = positionRepo.findByChainNameAndPositionKey(CHAIN, POS_KEY);
         assertTrue(pos.isPresent());
-        assertEquals(GmxPosition.Status.LIQUIDATED.name(), pos.get().getStatus());
+        assertEquals(GmxPosition.Status.LIQUIDATED, pos.get().getStatus());
         assertTrue(pos.get().getSize().compareTo(BigInteger.ZERO) <= 0);
 
-        System.out.println("TEST4 PASSED: LIQUIDATE -> LIQUIDATED");
+        log.info("TEST4 PASSED: LIQUIDATE -> LIQUIDATED");
     }
 
     // ======================== 多次加仓 ========================
@@ -208,7 +213,7 @@ class GmxPositionServiceTest {
         assertEquals(new BigInteger("1500"), pos.get().getSize());
         assertEquals(new BigInteger("1500000"), pos.get().getCollateral());
 
-        System.out.println("TEST5 PASSED: 多次加仓, size=1500, collateral=1500000");
+        log.info("TEST5 PASSED: 多次加仓, size=1500, collateral=1500000");
     }
 
     // ======================== 查询方法 ========================

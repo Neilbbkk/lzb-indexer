@@ -1,5 +1,8 @@
 package com.lzb.indexer.scanner;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,6 +25,8 @@ import static org.mockito.Mockito.*;
  * 预期值已通过 Python 脚本与链上数据交叉验证
  */
 class EventDecoderTest {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(EventDecoderTest.class);
 
     private final EventDecoder decoder = new EventDecoder(Collections.emptyList());
 
@@ -130,16 +135,16 @@ class EventDecoderTest {
                 "positionKey 应以 0x 开头");
         assertEquals(66, result.getPositionKey().length());
 
-        System.out.println("=== EventDecoder 解码结果 ===");
-        System.out.println("account:          " + result.getAccount());
-        System.out.println("collateralToken:  " + result.getCollateralToken());
-        System.out.println("indexToken:       " + result.getIndexToken());
-        System.out.println("sizeInUsd:        " + result.getSizeDelta());
-        System.out.println("collateralAmount: " + result.getCollateralDelta());
-        System.out.println("executionPrice:   " + result.getPrice());
-        System.out.println("fee:              " + result.getFee());
-        System.out.println("isLong:           " + result.getIsLong());
-        System.out.println("positionKey:      " + result.getPositionKey());
+        LOGGER.info("=== EventDecoder 解码结果 ===");
+        LOGGER.info("account:          {}", result.getAccount());
+        LOGGER.info("collateralToken:  {}", result.getCollateralToken());
+        LOGGER.info("indexToken:       {}", result.getIndexToken());
+        LOGGER.info("sizeInUsd:        {}", result.getSizeDelta());
+        LOGGER.info("collateralAmount: {}", result.getCollateralDelta());
+        LOGGER.info("executionPrice:   {}", result.getPrice());
+        LOGGER.info("fee:              {}", result.getFee());
+        LOGGER.info("isLong:           {}", result.getIsLong());
+        LOGGER.info("positionKey:      {}", result.getPositionKey());
     }
 
     // ======================== 边界情况 ========================
