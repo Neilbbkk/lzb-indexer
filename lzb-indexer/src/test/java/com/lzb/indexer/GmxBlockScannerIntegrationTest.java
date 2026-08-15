@@ -100,7 +100,6 @@ public class GmxBlockScannerIntegrationTest {
         registry.add("app.chains[0].rpc-url",           () -> ANVIL_RPC);
         registry.add("app.chains[0].contract-address",  () -> contractAddress);
         registry.add("app.chains[0].wallet-address",    () -> ANVIL_ADDRESS);
-        registry.add("app.chains[0].private-key",       () -> ANVIL_PRIVATE_KEY);
         registry.add("app.chains[0].start-block",       () -> "0");
         registry.add("app.chains[0].page-size",         () -> "100");
         registry.add("app.chains[0].reorg-depth",       () -> "1");

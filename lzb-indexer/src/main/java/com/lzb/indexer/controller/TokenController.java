@@ -41,17 +41,4 @@ public class TokenController {
         return getBalance(WALLET);
     }
 
-    @PostMapping("/transfer")
-    public Map<String, Object> transfer(
-            @RequestParam String to,
-            @RequestParam(defaultValue = "100") BigInteger amount) throws Exception {
-        BigInteger amountWei = amount.multiply(BigInteger.TEN.pow(18));
-        String txHash = tokenService.transfer(to, amountWei);
-        Map<String, Object> m = new HashMap<>();
-        m.put("txHash", txHash);
-        m.put("to", to);
-        m.put("amount", amount);
-        m.put("status", "sent");
-        return m;
-    }
 }

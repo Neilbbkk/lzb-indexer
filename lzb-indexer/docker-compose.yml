@@ -57,7 +57,6 @@ services:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      ETH_PRIVATE_KEY: ${ETH_PRIVATE_KEY}
       DB_PASSWORD: postgres
     ports:
       - "8080:8080"

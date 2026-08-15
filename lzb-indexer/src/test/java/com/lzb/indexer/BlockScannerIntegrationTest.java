@@ -124,7 +124,6 @@ public class BlockScannerIntegrationTest {
         registry.add("app.chains[0].rpc-url",           () -> ANVIL_RPC);
         registry.add("app.chains[0].contract-address",  () -> contractAddress);
         registry.add("app.chains[0].wallet-address",    () -> ANVIL_ADDRESS);
-        registry.add("app.chains[0].private-key",       () -> ANVIL_PRIVATE_KEY);
         registry.add("app.chains[0].start-block",       () -> "0");
         registry.add("app.chains[0].page-size",         () -> "100");   // 100 块/次，小批量便于测试
         registry.add("app.chains[0].reorg-depth",       () -> "1");     // anvil 不回滚，深度设 1 即可

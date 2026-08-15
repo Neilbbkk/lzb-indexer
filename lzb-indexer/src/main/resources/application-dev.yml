@@ -36,7 +36,6 @@ app:
       rpc-url: "https://arb1.arbitrum.io/rpc"
       contract-address: "0xC8ee91A54287DB53897056e12D9819156D3822Fb"
       wallet-address: "0x0000000000000000000000000000000000000000"
-      private-key: "0x0000000000000000000000000000000000000000000000000000000000000000"
       start-block: 450000000
       page-size: 2000
       reorg-depth: 12

@@ -26,7 +26,6 @@ app:
       rpc-url: "https://sepolia.infura.io/v3/${INFURA_API_KEY:}"
       contract-address: "0x8f15B4F7F145f3F0B17C231746377F76f5771Be8"
       wallet-address: "0x3642287697C85eEB038C04aA00Da55b059B00593"
-      private-key: ${ETH_PRIVATE_KEY:}
       start-block: 6900000
       page-size: 2000
       reorg-depth: 12
@@ -36,7 +35,6 @@ app:
       rpc-url: "https://eth.drpc.org"
       contract-address: "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc"
       wallet-address: "0x0000000000000000000000000000000000000000"
-      private-key: "0x0000000000000000000000000000000000000000000000000000000000000000"
       start-block: 20800000
       page-size: 2000
       reorg-depth: 12
@@ -46,7 +44,6 @@ app:
       rpc-url: "https://arb1.arbitrum.io/rpc"
       contract-address: "0xC8ee91A54287DB53897056e12D9819156D3822Fb"
       wallet-address: "0x0000000000000000000000000000000000000000"
-      private-key: "0x0000000000000000000000000000000000000000000000000000000000000000"
       start-block: 450000000
       page-size: 2000
       reorg-depth: 12

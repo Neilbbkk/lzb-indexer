@@ -34,7 +34,6 @@ public class ChainProperties {
         private String rpcUrl;
         private String contractAddress;
         private String walletAddress;
-        private String privateKey;
         private long startBlock = 0;
         private int pageSize = 10000;
         private int reorgDepth = 12;
@@ -49,8 +48,6 @@ public class ChainProperties {
         public void setContractAddress(String v) { this.contractAddress = v; }
         public String getWalletAddress() { return walletAddress; }
         public void setWalletAddress(String v) { this.walletAddress = v; }
-        public String getPrivateKey() { return privateKey; }
-        public void setPrivateKey(String v) { this.privateKey = v; }
         public long getStartBlock() { return startBlock; }
         public void setStartBlock(long v) { this.startBlock = v; }
         public int getPageSize() { return pageSize; }
