@@ -14,6 +14,12 @@ public interface GmxPositionHistoryRepository extends JpaRepository<GmxPositionH
     List<GmxPositionHistory> findByChainNameAndBlockNumberBetweenOrderByBlockNumberAsc(
             String chainName, Long startBlock, Long endBlock);
 
+    List<GmxPositionHistory> findByChainNameAndPositionKeyOrderByBlockNumberAscLogIndexAsc(
+            String chainName, String positionKey);
+
+    List<GmxPositionHistory> findByChainNameAndBlockNumberGreaterThanEqual(
+            String chainName, Long blockNumber);
+
     boolean existsByTxHashAndLogIndexAndChainName(String txHash, Integer logIndex, String chainName);
 
     void deleteByChainNameAndBlockNumberGreaterThan(String chainName, Long blockNumber);

@@ -93,8 +93,9 @@ public class GmxPosition {
     private String lastUpdateTx;
 
     /** 仓位状态 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
-    private String status;
+    private Status status;
 
     public enum Status {
         OPEN,       // 持仓中
@@ -131,7 +132,7 @@ public class GmxPosition {
         this.entryTx = entryTx;
         this.lastUpdateBlock = entryBlock;
         this.lastUpdateTx = entryTx;
-        this.status = "OPEN";
+        this.status = Status.OPEN;
         this.chainName = chainName;
     }
 
@@ -161,6 +162,10 @@ public class GmxPosition {
     public void applyIncrease(BigInteger sizeDelta, BigInteger collateralDelta,
                               BigInteger price, BigInteger fee, Long blockNumber) {
         BigInteger newSize = this.size.add(sizeDelta);
+        if (newSize.signum() > 0) {
+            // 已平仓/已清算仓位收到新加仓事件时恢复为 OPEN（事件溯源重开）
+            this.status = Status.OPEN;
+        }
         if (newSize.compareTo(BigInteger.ZERO) <= 0) {
             this.averagePrice = price;
         } else {
@@ -178,13 +183,13 @@ public class GmxPosition {
     /** 平仓 */
     public void markClosed(Long blockNumber) {
         this.lastUpdateBlock = blockNumber;
-        this.status = "CLOSED";
+        this.status = Status.CLOSED;
     }
 
     /** 清算 */
     public void markLiquidated(Long blockNumber) {
         this.lastUpdateBlock = blockNumber;
-        this.status = "LIQUIDATED";
+        this.status = Status.LIQUIDATED;
     }
 
     /** 更新最后修改记录 */
@@ -209,7 +214,7 @@ public class GmxPosition {
     public String getEntryTx() { return entryTx; }
     public Long getLastUpdateBlock() { return lastUpdateBlock; }
     public String getLastUpdateTx() { return lastUpdateTx; }
-    public String getStatus() { return status; }
+    public Status getStatus() { return status; }
     public String getChainName() { return chainName; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

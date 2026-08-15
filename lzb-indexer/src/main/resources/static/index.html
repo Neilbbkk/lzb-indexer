@@ -285,7 +285,7 @@
         </div>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>区块</th><th>TxHash</th><th>Sender</th><th>To</th><th style="text-align:right">amount0In</th><th style="text-align:right">amount1In</th><th style="text-align:right">amount0Out</th><th style="text-align:right">amount1Out</th></tr></thead><tbody id="body-swaps"></tbody></table>
+        <table><thead><tr><th>区块</th><th>TxHash</th><th>Sender</th><th>To</th><th style="text-align:right">USDC In</th><th style="text-align:right">WETH In</th><th style="text-align:right">USDC Out</th><th style="text-align:right">WETH Out</th></tr></thead><tbody id="body-swaps"></tbody></table>
       </div>
     </div>
 
@@ -392,10 +392,10 @@ function renderRow(tab,item){
       '<td>'+fmtHash(item.txHash)+'</td>'+
       '<td>'+fmtAddr(item.sender)+'</td>'+
       '<td>'+fmtAddr(item.receiver)+'</td>'+
-      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount0In,18,'WETH')+'</td>'+
-      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount1In,6,'USDC')+'</td>'+
-      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount0Out,18,'WETH')+'</td>'+
-      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount1Out,6,'USDC')+'</td></tr>';
+      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount0In,6,'USDC')+'</td>'+
+      '<td class="mono amount-in" style="text-align:right">'+fmtBigInt(item.amount1In,18,'WETH')+'</td>'+
+      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount0Out,6,'USDC')+'</td>'+
+      '<td class="mono amount-out" style="text-align:right">'+fmtBigInt(item.amount1Out,18,'WETH')+'</td></tr>';
   }
   if(tab==='gmx'){
     var tt='';var et=item.eventType;

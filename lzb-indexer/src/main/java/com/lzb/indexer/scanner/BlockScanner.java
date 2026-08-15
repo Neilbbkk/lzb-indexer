@@ -389,7 +389,7 @@ public class BlockScanner {
 
     private void verifyAndHandleReorg() {
         List<ScannedBlock> recentBlocks = scannedBlockRepo
-                .findByChainNameOrderByBlockNumberAsc(chainName, PageRequest.of(0, reorgDepth));
+                .findByChainNameOrderByBlockNumberDesc(chainName, PageRequest.of(0, reorgDepth));
         if (recentBlocks.isEmpty()) return;
 
         Long rollbackTarget = null;
@@ -418,7 +418,16 @@ public class BlockScanner {
             } else if (protocol.equals("UNISWAP_V2")) {
                 swapEventRepo.deleteByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
             } else if (protocol.startsWith("GMX")) {
+                java.util.Set<String> affectedKeys = new java.util.HashSet<>();
+                List<GmxPositionHistory> affected = gmxHistoryRepo
+                        .findByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
+                for (GmxPositionHistory e : affected) {
+                    if (e.getPositionKey() != null) {
+                        affectedKeys.add(e.getPositionKey());
+                    }
+                }
                 gmxHistoryRepo.deleteByChainNameAndBlockNumberGreaterThanEqual(chainName, rollbackTarget);
+                gmxPositionService.rebuildPositions(chainName, affectedKeys);
             }
 
             SyncCheckpoint cp = checkpointRepo

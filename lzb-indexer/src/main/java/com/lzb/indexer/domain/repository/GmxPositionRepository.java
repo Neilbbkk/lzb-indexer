@@ -19,4 +19,6 @@ public interface GmxPositionRepository extends JpaRepository<GmxPosition, Long> 
     long countByChainName(String chainName);
 
     void deleteByChainName(String chainName);
+
+    void deleteByChainNameAndPositionKey(String chainName, String positionKey);
 }

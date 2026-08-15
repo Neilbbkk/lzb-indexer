@@ -25,11 +25,40 @@ import java.util.*;
  * 闂佽崵鍠愰悷杈╁緤閸ф鍋夋繝濠傜墛閻掑鏌￠崟顐ょ閻㈩垰妫濋弻娑㈠煛閸曨兙鈧啰绱?EventUtils.EventLogData 缂傚倸鍊烽悞锕傚箰婵犳碍鍊垫い鏍ㄧ⊕婵挳鏌熼崹顔碱伀缂佲偓婢舵劖鐓欓梻鍫熶緱閸庡繐鈹戦瑙勬珖闁逞屽墮濠€閬嶅磻閻旇偐宓?ABI 闂佽崵鍠愰悷杈╁緤閸ф鍋?
  */
 @Component
-public class EventDecoder {
+public class EventDecoder implements EventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(EventDecoder.class);
+    /** 策略路由：key=protocol，value=对应 EventHandler */
+    private final Map<String, EventHandler> handlerMap;
 
-    // ======================== ERC20 Transfer ========================
+    /** Spring 注入所有 EventHandler Bean，加上自身组成路由表 */
+    public EventDecoder(List<EventHandler> handlers) {
+        this.handlerMap = new java.util.HashMap<>();
+        for (EventHandler h : handlers) {
+            handlerMap.put(h.getProtocol(), h);
+        }
+        handlerMap.put("GMX_VAULT", this);
+    }
+
+    /** 按协议名获取对应的事件处理器 */
+    public EventHandler getHandler(String protocol) {
+        EventHandler h = handlerMap.get(protocol);
+        if (h == null) {
+            log.warn("No EventHandler for protocol: {}", protocol);
+        }
+        return h;
+    }
+
+    // ============ EventHandler 接口方法 (GMX 代理) ============
+
+    @Override
+    public String getProtocol() { return "GMX_VAULT"; }
+
+    @Override
+    public java.util.List<String> getEventHashes() {
+        return java.util.Arrays.asList(EMIT_EVENT_LOG_HASH, EMIT_EVENT_LOG1_HASH, EMIT_EVENT_LOG2_HASH);
+    }
+// ======================== ERC20 Transfer ========================
 
     private static final Event TRANSFER_EVENT = new Event(
             "Transfer",
@@ -88,13 +117,12 @@ public class EventDecoder {
     // ======================== GMX V2 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灪鐎氭岸鏌涢埄鍐炬當闁?========================
 
     /** emitEventLog 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灮妞规娊鏌熼鍡楀閳ь剚濞婇弻娑樷攽閸℃瑥顣虹紓?*/
-    private static final String EMIT_EVENT_LOG_HASH  = "0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160";
+    private static final String EMIT_EVENT_LOG_HASH   = "0x7e3bde2ba7aca4a8499608ca57f3b0c1c1c93ace63ffd3741a9fab204146fc9a";
+    private static final String EMIT_EVENT_LOG1_HASH  = "0x137a44067c8961cd7e1d876f4754a5a3a75989b4552f1843fc69c3b372def160";
     /** emitEventLog2 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灮妞规娊鏌熼鍡楀閳ь剚濞婇弻娑樷攽閸℃瑥顣虹紓?*/
     private static final String EMIT_EVENT_LOG2_HASH = "0x468a25a7ba624ceea6e540ad6f49171b52495b648417ae91bca21676d8a24dc5";
 
     /** 婵犵數鍋炲娆擃敄閸儲鍎婃い鏍仜鐟欙箓鏌涢鐘茬仼妞?emitEventLog(address,string,bytes) 闂?keccak256 */
-    private static final String EMIT_EVENT_LOG_TEST_HASH = "0xbdb3451f3fa2c91324a36875bc5d7d52a8643a7d89be9ab021abb4f14669bc88";
-
     /** keccak256("PositionIncrease") */
     private static final String POSITION_INCREASE_HASH = "0xf94196ccb31f81a3e67df18f2a62cbfb50009c80a7d3c728a3f542e3abc5cb63";
     /** keccak256("PositionDecrease") */
@@ -102,7 +130,8 @@ public class EventDecoder {
 
     public boolean isGmxV2Event(Log logEntry) {
         return logEntry.getTopics() != null && logEntry.getTopics().size() >= 2
-                && (EMIT_EVENT_LOG_HASH.equals(logEntry.getTopics().get(0)) || EMIT_EVENT_LOG_TEST_HASH.equals(logEntry.getTopics().get(0))
+                && (EMIT_EVENT_LOG_HASH.equals(logEntry.getTopics().get(0))
+                 || EMIT_EVENT_LOG1_HASH.equals(logEntry.getTopics().get(0))
                  || EMIT_EVENT_LOG2_HASH.equals(logEntry.getTopics().get(0)));
     }
 
@@ -131,14 +160,12 @@ public class EventDecoder {
 
     public GmxPositionHistory decodeIncreasePosition(Log logEntry, String chainName) {
         if (!isIncreasePositionEvent(logEntry)) return null;
-        boolean isLog2 = EMIT_EVENT_LOG2_HASH.equals(logEntry.getTopics().get(0));
-        return decodePosition(logEntry, "INCREASE", chainName, isLog2, false);
+        return decodePosition(logEntry, "INCREASE", chainName, false);
     }
 
     public GmxPositionHistory decodeDecreasePosition(Log logEntry, String chainName) {
         if (!isDecreasePositionEvent(logEntry)) return null;
-        boolean isLog2 = EMIT_EVENT_LOG2_HASH.equals(logEntry.getTopics().get(0));
-        return decodePosition(logEntry, "DECREASE", chainName, isLog2, true);
+        return decodePosition(logEntry, "DECREASE", chainName, true);
     }
 
     /**
@@ -147,13 +174,13 @@ public class EventDecoder {
      * @param negate 闂備礁鎲￠崹鐢垫崲鐎ｎ剙鍨濋柕濞炬櫅缁秹鏌熼鐐蹭喊闁哥喎楠搁埥?true闂備焦瀵х粙鎴︽嚐椤栫偞鍎?sizeDelta/collateralDelta 闂備礁鎲￠悷锕傛偋閻愮數鐭?
      */
     private GmxPositionHistory decodePosition(Log logEntry, String eventType, String chainName,
-                                               boolean isLog2, boolean negate) {
+                                               boolean negate) {
         try {
             Map<String, String> addr = new LinkedHashMap<>();
             Map<String, BigInteger> uints = new LinkedHashMap<>();
             Map<String, Boolean> bools = new LinkedHashMap<>();
             Map<String, String> b32s = new LinkedHashMap<>();
-            parseEventLogData(hex(logEntry.getData()), isLog2, addr, uints, bools, b32s);
+            parseEventLogData(hex(logEntry.getData()), addr, uints, bools, b32s);
 
             // 闂佽崵濮甸崝褔姊介崟顖氭槬婵炴垯鍨归幑鍫曟煛婢跺顕滅紒鎻掝煼閺屻劌鈽夊▎鎴犲彎缂備線纭搁崣鍐ㄧ暦濡ゅ懎閱囨繝濠傛噽閻?data 闂佽崵鍠愰悷杈╁緤妤ｅ啯鍊靛ù鐘差儐閺咁剟鎮橀悙宸綗濞存粌銈搁幃褰掑箛閳轰礁濮庨梺鍓茬厛閸ㄥ爼骞?topic[2] 闂備胶顭堢换鎴犲垝瀹€鈧懞?
             String account = getAddr(addr, "account");
@@ -221,14 +248,14 @@ public class EventDecoder {
      * emitEventLog2: data = msgSender(32B) + EventLogData(闂備礁鎲￠弻锝夊礉瀹ュ鐒?
      *   eventName 闂?topic[2], EventLogData 闂佽崵濮嶉崘銊π╁銈庡亝閸旀牜绮?hex 闂備胶顭堥鍛崲閹哄秶鏄?64
      */
-    private static void parseEventLogData(String hex, boolean isLog2,
+    private static void parseEventLogData(String hex,
             Map<String, String> addr, Map<String, BigInteger> uints,
             Map<String, Boolean> bools, Map<String, String> b32s) {
         if (hex == null || hex.length() < 256) return;
 
         // EventLogData = { addrItems, uintItems, intItems, boolItems, bytes32Items, bytesItems, stringItems }
         // 婵犳鍣徊鐣屾崲濮椻偓婵?64 闂佽瀛╃粙鎺椼€冩径瀣╃箚? 闂備胶顭堥鍛崲閹哄秶鏄傞梻?32B) + 闂傚倸鍊甸崑鎾绘煕椤垵鏋涙い?32B), 闂備浇妗ㄩ懗鑸垫櫠濡も偓閻ｅ灚绗熼埀顒€鐣烽悜钘壩╅柕澶涚畱閳ь剛鏁诲?
-        int edOffChar = bytesToBigInt(hex, isLog2 ? 64 : 128).intValue() * 2;
+        int edOffChar = bytesToBigInt(hex, 128).intValue() * 2;
         if (edOffChar < 64 || hex.length() < edOffChar + 448) return;
 
         int[] relOff = new int[7];
@@ -239,7 +266,7 @@ public class EventDecoder {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("EventLogData edOffChar={} isLog2={} relOff={}", edOffChar, isLog2, Arrays.toString(relOff));
+            log.debug("EventLogData edOffChar={} relOff={}", edOffChar, Arrays.toString(relOff));
         }
 
         // 闂傚倷鐒﹂崕瀹犮亹閻愮數绠旈柛灞句緱濞堢晫鈧厜鍋撻柛鎰典簼椤秹姊洪幐搴ｂ姇鐎光偓閹间礁纾块悗闈涙憸绾鹃箖鏌ょ喊鍗炲妞わ絽銈搁弻娑橆潩椤掑倸鈪遍柣搴ｆ嚀绾绢參鍩€椤掍胶鈯曟い銊ユ椤㈡瑧浠︽穱鍙樼盎闂佸憡绻傜€氼喚鍠婂鍛?addr[0] uint[1] int[2] bool[3] bytes32[4]

@@ -2,6 +2,7 @@ package com.lzb.indexer.service;
 
 import com.lzb.indexer.domain.entity.GmxPosition;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
+import com.lzb.indexer.domain.repository.GmxPositionHistoryRepository;
 import com.lzb.indexer.domain.repository.GmxPositionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * GMX 仓位聚合服务
@@ -26,9 +28,31 @@ public class GmxPositionService {
     private static final Logger log = LoggerFactory.getLogger(GmxPositionService.class);
 
     private final GmxPositionRepository positionRepo;
+    private final GmxPositionHistoryRepository historyRepo;
 
-    public GmxPositionService(GmxPositionRepository positionRepo) {
+    public GmxPositionService(GmxPositionRepository positionRepo,
+                              GmxPositionHistoryRepository historyRepo) {
         this.positionRepo = positionRepo;
+        this.historyRepo = historyRepo;
+    }
+
+    /**
+     * Reorg 回滚后重建持仓快照：
+     * 删除受影响 key 的旧快照，再按事件流顺序（blockNumber, logIndex）重放全部历史。
+     */
+    @Transactional
+    public void rebuildPositions(String chainName, Set<String> positionKeys) {
+        if (positionKeys == null || positionKeys.isEmpty()) {
+            return;
+        }
+        for (String key : positionKeys) {
+            positionRepo.deleteByChainNameAndPositionKey(chainName, key);
+            List<GmxPositionHistory> events = historyRepo
+                    .findByChainNameAndPositionKeyOrderByBlockNumberAscLogIndexAsc(chainName, key);
+            for (GmxPositionHistory e : events) {
+                apply(e);
+            }
+        }
     }
 
     /**
