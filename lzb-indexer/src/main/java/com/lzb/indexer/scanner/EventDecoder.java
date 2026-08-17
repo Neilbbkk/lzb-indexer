@@ -32,10 +32,10 @@ import java.util.*;
 public class EventDecoder implements EventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(EventDecoder.class);
-    /** 策略路由：key=protocol，value=对应 EventHandler */
+    /** Protocol routing table: protocol name -> EventHandler. */
     private final Map<String, EventHandler> handlerMap;
 
-    /** Spring 注入所有 EventHandler Bean，加上自身组成路由表 */
+    /** Spring injects all EventHandler beans and registers this decoder as the GMX handler. */
     public EventDecoder(List<EventHandler> handlers) {
         this.handlerMap = new java.util.HashMap<>();
         for (EventHandler h : handlers) {
@@ -44,7 +44,7 @@ public class EventDecoder implements EventHandler {
         handlerMap.put("GMX_VAULT", this);
     }
 
-    /** 按协议名获取对应的事件处理器 */
+    /** Get the handler for a protocol name. */
     public EventHandler getHandler(String protocol) {
         EventHandler h = handlerMap.get(protocol);
         if (h == null) {
@@ -53,7 +53,7 @@ public class EventDecoder implements EventHandler {
         return h;
     }
 
-    // ============ EventHandler 接口方法 (GMX 代理) ============
+    // ============ EventHandler interface methods (GMX proxy) ============
 
     @Override
     public String getProtocol() { return "GMX_VAULT"; }
@@ -73,7 +73,7 @@ public class EventDecoder implements EventHandler {
             ));
     private static final String TRANSFER_EVENT_HASH = EventEncoder.encode(TRANSFER_EVENT);
 
-    /** 闂備礁鍚嬮崕鎶藉床閼艰翰浜?Transfer 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灮妞规娊鏌熼鍡楀閳ь剚濞婇弻娑樷攽閸℃瑥顣虹紓浣诡殔濞差參寮澶婇唶婵犲﹤鎳撶换?BlockScanner 闂佽崵濮崇粈浣规櫠娴犲鍋?eth filter闂?*/
+    /** Transfer event topic0 hash used by BlockScanner's eth_getLogs filter. */
     public static String getTransferEventHash() {
         return TRANSFER_EVENT_HASH;
     }
@@ -149,12 +149,12 @@ public class EventDecoder implements EventHandler {
                 && POSITION_DECREASE_HASH.equals(logEntry.getTopics().get(1));
     }
 
-    /** 婵犵數鍋為幐鎼佸箠閹扮増鍋╅悹鍥у棘濞戙垹鐒垫い鎺嗗亾闂囧鎮楅敐鍛暢缂佹劖鈥攅creasePosition 濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇ョ磿閳?isLiquidation flag 濠?true 闂備礁鎼崯鍐测枖濞戙垹鍨傞柣锝呭閸嬫挾鎲撮崟顓犲彎闁荤姵鍔楅崰搴ㄥΥ閹烘宸濇い鏍ㄧ矋濮?*/
+    /** Detect liquidation: DECREASE events carry an isLiquidation flag set to true. */
     public boolean isLiquidatePositionEvent(Log logEntry) {
         return false;
     }
 
-    /** 闂佽崵鍠愰悷杈╁緤閸ф鍋夋繝濠傚暔閳ь剚甯″畷銊╊敍濠婂嫭鐦撳┑鐐茬摠缁矂顢栭崟顐熸瀻闁靛繈鍊栭弲顒勬煕椤愩倕鏋戦柣锝庡灦閺岋繝宕奸锛勭泿闂佹眹鍊曠€氫即骞冨畷鍥ㄦ殰妞ゆ柨澧介ˇ顕€鏌℃径鍡樻珕闁哄被鍔岀叅?null闂?*/
+    /** Decode a liquidation event; currently unsupported, returns null. */
     public GmxPositionHistory decodeLiquidatePosition(Log logEntry, String chainName) {
         log.debug("LiquidatePosition event detected but not yet supported, tx={}", logEntry.getTransactionHash());
         return null;
@@ -186,7 +186,7 @@ public class EventDecoder implements EventHandler {
             Map<String, String> b32s = new LinkedHashMap<>();
             parseEventLogData(hex(logEntry.getData()), addr, uints, bools, b32s);
 
-            // 闂佽崵濮甸崝褔姊介崟顖氭槬婵炴垯鍨归幑鍫曟煛婢跺顕滅紒鎻掝煼閺屻劌鈽夊▎鎴犲彎缂備線纭搁崣鍐ㄧ暦濡ゅ懎閱囨繝濠傛噽閻?data 闂佽崵鍠愰悷杈╁緤妤ｅ啯鍊靛ù鐘差儐閺咁剟鎮橀悙宸綗濞存粌銈搁幃褰掑箛閳轰礁濮庨梺鍓茬厛閸ㄥ爼骞?topic[2] 闂備胶顭堢换鎴犲垝瀹€鈧懞?
+            // Fallback: if "account" is missing from data, read it from topic[2].
             String account = getAddr(addr, "account");
             if (account.isEmpty() && logEntry.getTopics().size() > 2) {
                 String t2 = logEntry.getTopics().get(2);
@@ -194,10 +194,10 @@ public class EventDecoder implements EventHandler {
                     account = t2.substring(t2.length() - 40);
                 }
             }
-            // 闂備胶顢婂▔娑㈡倶濮橆厾绠鹃柛灞剧〒椤╃兘鏌ㄥ┑鍡樺櫧妞ゅ繑鐓￠弻銊モ槈濞嗘垹鍙濈紓浣诡殔椤﹂潧鐣烽妷銉ф殕闁逞屽墯閺呰泛螖閸涱厼鐝樺銈嗗坊閸嬫挾鎲搁悧鍫㈠弨闁硅櫕顨婇幃鍓т沪閻愵剚顓瑰┑鐐村灦閹稿摜绮旈幘顔肩畺?key 闂?
+            // Fallback for collateralToken: try initialCollateralToken when absent.
             String collateralToken = getAddr(addr, "collateralToken");
             if (collateralToken.isEmpty()) collateralToken = getAddr(addr, "initialCollateralToken");
-            // 闂備礁婀遍…鍫澝洪敃鍌氭辈闁绘柨鎽滈々鐑芥煥濠靛棙鍣芥い?market闂備焦瀵х粙鎺楁儗椤旂偓顐界€瑰嫭澹嬮弸搴ㄦ煃閵夈儳锛嶆慨锝忕畵閹綊宕堕妸锔绢槬濡炪倧绠掑▔鏇犲垝閺傛鍚嬮柛娑卞弨椤斿姊洪悡搴ｏ紞闁哄拋鍋勯埢?key 闂?
+            // Fallback for market: indexToken -> market -> longToken -> shortToken.
             String market = getAddr(addr, "indexToken");
             if (market.isEmpty()) market = getAddr(addr, "market");
             if (market.isEmpty()) market = getAddr(addr, "longToken");
@@ -241,16 +241,18 @@ public class EventDecoder implements EventHandler {
         }
     }
 
-    // ======================== EventLogData 闂佽崵鍠愰悷杈╁緤妤ｅ啯鍊?========================
+    // ======================== EventLogData Parsing ========================
 
     /**
-     * 闂佽崵鍠愰悷杈╁緤妤ｅ啯鍊?emitEventLog/emitEventLog2 闂?data 闂佽瀛╃粙鎺椼€冮崱娑辨晩?
+    /**
+     * Parse the custom EventLogData payload from emitEventLog / emitEventLog2 logs.
      *
-     * emitEventLog:  data = msgSender(32B) + eventName(闂備礁鎲￠弻锝夊礉瀹ュ鐒? + EventLogData(闂備礁鎲￠弻锝夊礉瀹ュ鐒?
-     *   EventLogData 闂佽崵濮嶉崘銊π╁銈庡亝閸旀牜绮?hex 闂備胶顭堥鍛崲閹哄秶鏄?128
+     * emitEventLog:  data = msgSender(32B) + eventName(dynamic) + EventLogData(dynamic)
+     *   EventLogData offset is stored in word 2 (char offset 128).
      *
-     * emitEventLog2: data = msgSender(32B) + EventLogData(闂備礁鎲￠弻锝夊礉瀹ュ鐒?
-     *   eventName 闂?topic[2], EventLogData 闂佽崵濮嶉崘銊π╁銈庡亝閸旀牜绮?hex 闂備胶顭堥鍛崲閹哄秶鏄?64
+     * emitEventLog2: data = msgSender(32B) + eventName(dynamic) + EventLogData(dynamic)
+     *   EventLogData offset is also at word 2 (verified against mainnet).
+     */
      */
     private static void parseEventLogData(String hex,
             Map<String, String> addr, Map<String, BigInteger> uints,
@@ -258,7 +260,7 @@ public class EventDecoder implements EventHandler {
         if (hex == null || hex.length() < 256) return;
 
         // EventLogData = { addrItems, uintItems, intItems, boolItems, bytes32Items, bytesItems, stringItems }
-        // 婵犳鍣徊鐣屾崲濮椻偓婵?64 闂佽瀛╃粙鎺椼€冩径瀣╃箚? 闂備胶顭堥鍛崲閹哄秶鏄傞梻?32B) + 闂傚倸鍊甸崑鎾绘煕椤垵鏋涙い?32B), 闂備浇妗ㄩ懗鑸垫櫠濡も偓閻ｅ灚绗熼埀顒€鐣烽悜钘壩╅柕澶涚畱閳ь剛鏁诲?
+        // EventLogData starts at word 2: msgSender(32B) + eventName offset(32B) + eventData offset(32B).
         int edOffChar = bytesToBigInt(hex, 128).intValue() * 2;
         if (edOffChar < 64 || hex.length() < edOffChar + 448) return;
 
@@ -294,9 +296,9 @@ public class EventDecoder implements EventHandler {
             int itemOff = bytesToBigInt(hex, cursor).intValue();
             int itemStart = arrStart + itemOff * 2;
             if (hex.length() < itemStart + 128) break;
-            // key 闂備礁鎲￠悷顖炲垂閻㈢绀傛慨妞诲亾鐎?offset 闂佽崵濮撮幖顐︽偪閸ヮ灐褰掑幢濞戞瑦娅栭梺鍓插亖閸庢彃袙閹扮増鍊垫繛鎴炵懐濞堟ɑ銇勯幋婊呭妽缂佸顦遍幏鐘侯槾缂佲偓閸℃稒鐓ユ繛鎴灻〃娆戠磼閳ュ啿鏆ｇ€规洩缍侀、娑樷攽閸℃绠ｉ梻浣告惈鐎氱兘宕归崘瑁佹椽宕稿Δ鈧粻鎶芥煏婢跺牆鍔氶柡浣哥埣閺屻倖娼忛妸锔绘缂備浇椴搁悷鈺呭箚瀹€鍕垫晣闁绘劕鐏氶幉鑽ょ磽娴ｈ娈ｇ紓鍌涙皑閹蹭即宕卞Ο鍦畾?"market"闂?
+            // Item key: inline bytes32 for short keys, otherwise an offset to a dynamic string.
             String key = readItemKey(hex, itemStart);
-            // value 闂?itemStart 闂備礁鎲￠懝楣冩煀閿濆拋鐒?32 闂佽瀛╃粙鎺椼€冩径瀣╃箚妞ゆ挾鍠庣欢?
+            // Value sits 32 bytes after itemStart; small raw values are resolved as offsets.
             BigInteger rawVal = bytesToBigInt(hex, itemStart + 64);
             String val;
             if (rawVal.compareTo(BigInteger.valueOf(10000)) < 0 && rawVal.signum() > 0) {
@@ -331,7 +333,7 @@ public class EventDecoder implements EventHandler {
             int itemStart = arrStart + itemOff * 2;
             if (hex.length() < itemStart + 192) break;
             String key = readItemKey(hex, itemStart);
-            // 闂傚倷鐒﹂崕瀹犮亹閻愮數绠旈柛宀€鍋涢弸渚€鏌ｅΔ鈧悧鍡欑矈閿曞倹鐓ユ繛鎴炵懐閸斿〖em 闂?4 婵犵鈧啿绾ч柡瀣吹濡叉劕顬婂绁?+ 0x40 闂備礁鎼粔鏉懨洪埡鍜佹晩?+ 闂佽楠稿﹢閬嶅磻閵堝拋鐎舵い鏍仜绾惧湱鐥銏╂缂佲偓閸℃稒鐓ユ繛鎴烆焾鐎氫即鏌ｉ妶鍛伃婵﹣绮欏畷銊╊敇濞戞ü澹曢梺缁樻尭鐎涒晠鐓鍌滅＜?3 婵?
+            // Uint item: small marker = offset to the value at itemStart + 128; otherwise marker is the value.
             BigInteger marker = bytesToBigInt(hex, itemStart + 64);
             BigInteger val;
             if (marker.compareTo(BigInteger.valueOf(10000)) < 0 && marker.signum() > 0) {
@@ -361,7 +363,7 @@ public class EventDecoder implements EventHandler {
             int itemStart = arrStart + itemOff * 2;
             if (hex.length() < itemStart + 192) break;
             String key = readItemKey(hex, itemStart);
-            // 闂傚倷鐒﹂崕瀹犮亹閻愮數绠旈柛宀€鍋涢弸渚€鏌ｅΔ鈧悧鍡欑矈閿曞倹鐓ユ繛鎴炵懐閸斿〖em 闂?4 婵犵鈧啿绾ч柡瀣吹濡叉劕顭冲▽绌檒 闂備胶顭堥敃锕傚储瑜嶉敃銏ゎ敂閸℃瑧鐣?3 婵?
+            // Bool item: small marker = offset to the boolean word at itemStart + 128.
             BigInteger boolMarker = bytesToBigInt(hex, itemStart + 64);
             boolean val;
             if (boolMarker.compareTo(BigInteger.valueOf(10000)) < 0 && boolMarker.signum() > 0) {
@@ -393,7 +395,7 @@ public class EventDecoder implements EventHandler {
             int itemStart = arrStart + itemOff * 2;
             if (hex.length() < itemStart + 192) break;
             String key = readItemKey(hex, itemStart);
-            // 闂傚倷鐒﹂崕瀹犮亹閻愮數绠旈柛宀€鍋涢弸渚€鏌ｅΔ鈧悧鍡欑矈閿曞倹鐓ユ繛鎴炵懐閸斿〖em 闂?4 婵犵鈧啿绾ч柡瀣吹濡叉劕顭冲▔宄礶s32 闂備胶顭堥敃锕傚储瑜嶉敃銏ゎ敂閸℃瑧鐣?3 婵?
+            // Bytes32 item: small marker = offset to the value at itemStart + 128.
             BigInteger b32Marker = bytesToBigInt(hex, itemStart + 64);
             String val;
             if (b32Marker.compareTo(BigInteger.valueOf(10000)) < 0 && b32Marker.signum() > 0) {
@@ -408,7 +410,7 @@ public class EventDecoder implements EventHandler {
         }
     }
 
-    // ======================== 闂佸搫顦悧鍡涘箠鎼淬垺鍙忔い蹇撶墕濡﹢鎮峰▎蹇擃伀闁?========================
+    // ======================== Hex / String Helpers ========================
 
     private static String hex(String s) {
         return s.startsWith("0x") ? s.substring(2) : s;
@@ -424,7 +426,7 @@ public class EventDecoder implements EventHandler {
         return (v < 0 || v > Integer.MAX_VALUE) ? -1 : (int) v;
     }
 
-    // 闂備胶鍎甸弲娑㈡偤閵娧勬殰閻庢稒顭囬々?32 闂佽瀛╃粙鎺椼€冩径瀣╃箚?slot 濠电偞鍨堕幖鈺呭矗閳ь剚銇勯弴姘祮鐎规洩缍佸鍊燁槻闁轰礁鐖奸弻銈嗘綇閵婏妇鍙嗛梺鐑╁閸涱垳鐣堕梺鎸庢閸庡銆呴锔界叆婵炴垶顭囨晶銏ゆ煟?key 濠?"market"闂?account"闂備焦瀵х粙鎴βㄩ埀顒傜磼鏉堛劎绠栫紒瀣槸椤撳ジ宕奸姀鈹惧亾閳?offset 闂佽崵濮撮幖顐︽偪閸ヮ灐?
+    // Read a short string inline from a 32-byte slot; used for keys like "market" or "account".
     private static String readInlineString(String hex, int charOff) {
         if (charOff < 0 || hex.length() < charOff + 64) return "";
         byte[] b = hexToBytes(hex.substring(charOff, charOff + 64));
@@ -532,4 +534,5 @@ public class EventDecoder implements EventHandler {
         }
     }
 }
+
 
