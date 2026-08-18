@@ -29,39 +29,9 @@ import java.util.*;
  * EventUtils.EventLogData struct, which must be parsed manually.
  */
 @Component
-public class EventDecoder implements EventHandler {
+public class EventDecoder {
 
     private static final Logger log = LoggerFactory.getLogger(EventDecoder.class);
-    /** Protocol routing table: protocol name -> EventHandler. */
-    private final Map<String, EventHandler> handlerMap;
-
-    /** Spring injects all EventHandler beans and registers this decoder as the GMX handler. */
-    public EventDecoder(List<EventHandler> handlers) {
-        this.handlerMap = new java.util.HashMap<>();
-        for (EventHandler h : handlers) {
-            handlerMap.put(h.getProtocol(), h);
-        }
-        handlerMap.put("GMX_VAULT", this);
-    }
-
-    /** Get the handler for a protocol name. */
-    public EventHandler getHandler(String protocol) {
-        EventHandler h = handlerMap.get(protocol);
-        if (h == null) {
-            log.warn("No EventHandler for protocol: {}", protocol);
-        }
-        return h;
-    }
-
-    // ============ EventHandler interface methods (GMX proxy) ============
-
-    @Override
-    public String getProtocol() { return "GMX_VAULT"; }
-
-    @Override
-    public java.util.List<String> getEventHashes() {
-        return java.util.Arrays.asList(EMIT_EVENT_LOG_HASH, EMIT_EVENT_LOG1_HASH, EMIT_EVENT_LOG2_HASH);
-    }
 // ======================== ERC20 Transfer ========================
 
     private static final Event TRANSFER_EVENT = new Event(
@@ -244,7 +214,6 @@ public class EventDecoder implements EventHandler {
     // ======================== EventLogData Parsing ========================
 
     /**
-    /**
      * Parse the custom EventLogData payload from emitEventLog / emitEventLog2 logs.
      *
      * emitEventLog:  data = msgSender(32B) + eventName(dynamic) + EventLogData(dynamic)
@@ -252,7 +221,6 @@ public class EventDecoder implements EventHandler {
      *
      * emitEventLog2: data = msgSender(32B) + eventName(dynamic) + EventLogData(dynamic)
      *   EventLogData offset is also at word 2 (verified against mainnet).
-     */
      */
     private static void parseEventLogData(String hex,
             Map<String, String> addr, Map<String, BigInteger> uints,
@@ -534,5 +502,3 @@ public class EventDecoder implements EventHandler {
         }
     }
 }
-
-

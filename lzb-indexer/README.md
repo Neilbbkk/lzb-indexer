@@ -27,10 +27,7 @@ graph TB
     end
 
     subgraph "Decoding"
-        ED[EventDecoder<br/>Strategy Pattern]
-        EH1[Erc20EventHandler]
-        EH2[UniswapV2EventHandler]
-        EH3[GmxEventHandler]
+        ED[EventDecoder]
     end
 
     subgraph "Persistence"
@@ -55,8 +52,7 @@ graph TB
     ARB --> BS3
     BS1 & BS2 & BS3 --> SCH
     SCH --> ED
-    ED --> EH1 & EH2 & EH3
-    EH1 & EH2 & EH3 --> REPO
+    ED --> REPO
     REPO --> PG
     PG --> REST
     REST --> DASH
@@ -66,7 +62,7 @@ graph TB
 
 **Design decisions:**
 - **Event Sourcing** for GMX positions — raw events stored in `gmx_position_history`, current state computed by replay
-- **Strategy Pattern** for event decoding — `EventHandler` interface with per-protocol implementations
+- **集中式解码** — EventDecoder 按协议分派（ERC20 / Uniswap V2 / GMX V2）
 - **StaticEventPublisher** bridge — enables non-Spring beans (`BlockScanner`) to publish Spring ApplicationEvents
 - **Reorg detection** via `scanned_blocks` table (block hash comparison)
 - **RPC retry** with exponential backoff (1s → 2s → 4s, max 3 attempts)
@@ -251,7 +247,7 @@ src/main/java/com/lzb/indexer/
     entity/        — JPA entities (TokenTransfer, SwapEvent, GmxPosition*, ...)
     repository/    — Spring Data JPA repositories (7 total)
   dto/             — TransferResponse, NewEventsEvent
-  scanner/         — BlockScanner, EventDecoder, EventHandler (Strategy), Scheduler
+  scanner/         — BlockScanner, EventDecoder, ScannerScheduler
   service/         — TokenService, TransferQueryService, GmxPositionService, EventPushListener
 ```
 
