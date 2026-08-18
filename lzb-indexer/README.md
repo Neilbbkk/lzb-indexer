@@ -107,13 +107,13 @@ Edit `src/main/resources/application.yml`:
 app:
   chains:
     - name: sepolia
-      rpc-url: "https://sepolia.infura.io/v3/YOUR_KEY"
+      rpc-url: "${SEPOLIA_RPC_URL:https://ethereum-sepolia.publicnode.com}"
       # ...
     - name: ethereum-uniswap
-      rpc-url: "https://eth.drpc.org"   # free public RPC
+      rpc-url: "${ETHEREUM_RPC_URL:https://ethereum-rpc.publicnode.com}"
       # ...
     - name: arbitrum-gmx-vault
-      rpc-url: "https://arb1.arbitrum.io/rpc"  # public endpoint
+      rpc-url: "${ARBITRUM_RPC_URL:https://arb1.arbitrum.io/rpc}"
       # ...
 ```
 
