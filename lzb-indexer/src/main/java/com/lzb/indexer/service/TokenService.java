@@ -82,7 +82,7 @@ public class TokenService {
         String encoded = FunctionEncoder.encode(fn);
         String from = (defaultWallet != null && !defaultWallet.isEmpty())
                 ? defaultWallet
-                : Address.DEFAULT;
+                : "0x0000000000000000000000000000000000000000";
         EthCall resp = web3j().ethCall(
                 Transaction.createEthCallTransaction(
                         from, contract(), encoded),
