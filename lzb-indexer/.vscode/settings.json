@@ -1,4 +1,4 @@
-﻿{
+{
     "java.configuration.updateBuildConfiguration":  "automatic",
     "editor.codeActionsOnSave":  {
                                      "source.organizeImports":  "explicit"
@@ -9,5 +9,6 @@
                              "vmargs":  "-Dspring.profiles.active=test",
                              "name":  "default",
                              "workingDirectory":  ""
-                         }
+                        },
+                        "java.compile.nullAnalysis.mode": "disabled"
 }
