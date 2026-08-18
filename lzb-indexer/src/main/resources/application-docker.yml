@@ -12,6 +12,11 @@ spring:
       ddl-auto: update
     show-sql: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 500
+          order_inserts: true
   flyway:
     enabled: false
 

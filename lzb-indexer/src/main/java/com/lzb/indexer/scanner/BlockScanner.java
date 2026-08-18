@@ -4,6 +4,7 @@ import com.lzb.indexer.config.ChainProperties.ChainConfig;
 import com.lzb.indexer.domain.entity.*;
 import com.lzb.indexer.domain.repository.*;
 import com.lzb.indexer.service.GmxPositionService;
+import com.lzb.indexer.service.ScanEventWriter;
 import io.micrometer.core.instrument.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +57,7 @@ public class BlockScanner {
     private final GmxPositionService gmxPositionService;
     private final SwapEventRepository swapEventRepo;
     private final SyncErrorRepository syncErrorRepo;
+    private final ScanEventWriter scanEventWriter;
 
     private final Counter transfersFound;
     private final Counter positionsFound;
@@ -73,9 +75,10 @@ public class BlockScanner {
                         ScannedBlockRepository scannedBlockRepo,
                         MeterRegistry meterRegistry,
                         GmxPositionHistoryRepository gmxHistoryRepo,
-                        GmxPositionService gmxPositionService,
-                        SwapEventRepository swapEventRepo,
-                        SyncErrorRepository syncErrorRepo) {
+                         GmxPositionService gmxPositionService,
+                         SwapEventRepository swapEventRepo,
+                         SyncErrorRepository syncErrorRepo,
+                         ScanEventWriter scanEventWriter) {
         this.chainName = cfg.getName();
         this.protocol = cfg.getProtocol() != null ? cfg.getProtocol() : "ERC20";
         this.contractAddress = cfg.getContractAddress();
@@ -98,6 +101,7 @@ public class BlockScanner {
         this.gmxPositionService = gmxPositionService;
         this.swapEventRepo = swapEventRepo;
         this.syncErrorRepo = syncErrorRepo;
+        this.scanEventWriter = scanEventWriter;
 
         String prefix = "scanner." + chainName;
         this.blocksProcessed = Counter.builder(prefix + ".blocks.processed")
@@ -217,31 +221,26 @@ public class BlockScanner {
 
         EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
         List<EthLog.LogResult> logResults = ethLog.getLogs();
-        int transferCount = 0;
+        List<TokenTransfer> batch = new ArrayList<>();
 
         for (EthLog.LogResult lr : logResults) {
             Log l = (Log) lr.get();
             try {
                 TokenTransfer t = eventDecoder.decode(l, chainName);
-                if (t == null) continue;
-
-                if (transferRepo.existsByTxHashAndLogIndexAndChainName(
-                        t.getTxHash(), t.getLogIndex(), t.getChainName())) {
-                    continue;
+                if (t != null) {
+                    batch.add(t);
                 }
-
-                transferRepo.save(t);
-                transfersFound.increment();
-                transferCount++;
             } catch (Exception e) {
                 long bn = l.getBlockNumber().longValue();
-                log.warn("BlockScanner[{}] ERC20 decode/save failed block {}: {}",
+                log.warn("BlockScanner[{}] ERC20 decode failed block {}: {}",
                         chainName, bn, e.getMessage());
                 recordError("DECODE", bn, "ERC20 Transfer: " + e.getMessage());
             }
         }
-        log.debug("BlockScanner[{}] ERC20: {}-{} had {} transfers", chainName, fromBlock, toBlock, transferCount);
-        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "transfer", transferCount));
+        scanEventWriter.saveTransfers(batch);
+        transfersFound.increment(batch.size());
+        log.debug("BlockScanner[{}] ERC20: {}-{} had {} transfers", chainName, fromBlock, toBlock, batch.size());
+        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "transfer", batch.size()));
         return logResults;
     }
 
@@ -260,31 +259,26 @@ public class BlockScanner {
 
         EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
         List<EthLog.LogResult> logResults = ethLog.getLogs();
-        int swapCount = 0;
+        List<SwapEvent> batch = new ArrayList<>();
 
         for (EthLog.LogResult lr : logResults) {
             Log l = (Log) lr.get();
             long bn = l.getBlockNumber().longValue();
             try {
                 SwapEvent swap = eventDecoder.decodeSwap(l, chainName);
-                if (swap == null) continue;
-
-                if (swapEventRepo.existsByTxHashAndLogIndexAndChainName(
-                        swap.getTxHash(), swap.getLogIndex(), swap.getChainName())) {
-                    continue;
+                if (swap != null) {
+                    batch.add(swap);
                 }
-
-                swapEventRepo.save(swap);
-                swapsFound.increment();
-                swapCount++;
             } catch (Exception e) {
-                log.warn("BlockScanner[{}] Uniswap decode/save failed block {}: {}",
+                log.warn("BlockScanner[{}] Uniswap decode failed block {}: {}",
                         chainName, bn, e.getMessage());
                 recordError("DECODE", bn, "Uniswap Swap: " + e.getMessage());
             }
         }
-        log.info("BlockScanner[{}] Uniswap {}-{} had {} swaps", chainName, fromBlock, toBlock, swapCount);
-        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "swap", swapCount));
+        scanEventWriter.saveSwaps(batch);
+        swapsFound.increment(batch.size());
+        log.info("BlockScanner[{}] Uniswap {}-{} had {} swaps", chainName, fromBlock, toBlock, batch.size());
+        StaticEventPublisher.publish(new com.lzb.indexer.dto.NewEventsEvent(chainName, "swap", batch.size()));
         return logResults;
     }
 
@@ -308,6 +302,7 @@ public class BlockScanner {
         int positionEventCount = 0;
         int gmxV2Match = 0;
         int decoded = 0;
+        List<GmxPositionHistory> batch = new ArrayList<>();
         for (EthLog.LogResult lr : logs) {
             Log l = (Log) lr.get();
             long bn = l.getBlockNumber().longValue();
@@ -331,20 +326,22 @@ public class BlockScanner {
 
                 if (event == null) continue;
                 decoded++;
-
-                if (gmxHistoryRepo.existsByTxHashAndLogIndexAndChainName(
-                        event.getTxHash(), event.getLogIndex(), chainName)) {
-                    continue;
-                }
-
-                gmxHistoryRepo.save(event);
-                gmxPositionService.apply(event);
-                positionsFound.increment();
+                batch.add(event);
                 positionEventCount++;
             } catch (Exception e) {
-                log.warn("BlockScanner[{}] GMX decode/save failed block {}: {}",
+                log.warn("BlockScanner[{}] GMX decode failed block {}: {}",
                         chainName, bn, e.getMessage());
                 recordError("DECODE", bn, "GMX event: " + e.getMessage());
+            }
+        }
+        scanEventWriter.saveGmxHistory(batch);
+        for (GmxPositionHistory event : batch) {
+            try {
+                gmxPositionService.apply(event);
+                positionsFound.increment();
+            } catch (Exception e) {
+                log.warn("BlockScanner[{}] GMX apply failed: {}", chainName, e.getMessage());
+                recordError("DB", event.getBlockNumber(), "GMX apply: " + e.getMessage());
             }
         }
         log.info("BlockScanner[{}] GMX {}-{} v2Match={} decoded={} saved={}",

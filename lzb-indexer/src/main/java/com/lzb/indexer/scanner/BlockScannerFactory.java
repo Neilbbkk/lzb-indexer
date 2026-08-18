@@ -3,6 +3,7 @@ package com.lzb.indexer.scanner;
 import com.lzb.indexer.config.ChainProperties;
 import com.lzb.indexer.domain.repository.*;
 import com.lzb.indexer.service.GmxPositionService;
+import com.lzb.indexer.service.ScanEventWriter;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ public class BlockScannerFactory {
     private final GmxPositionService gmxPositionService;
     private final SwapEventRepository swapEventRepo;
     private final SyncErrorRepository syncErrorRepo;
+    private final ScanEventWriter scanEventWriter;
 
     public BlockScannerFactory(EventDecoder eventDecoder,
                                TokenTransferRepository transferRepo,
@@ -34,7 +36,8 @@ public class BlockScannerFactory {
                                GmxPositionHistoryRepository gmxHistoryRepo,
                                GmxPositionService gmxPositionService,
                                SwapEventRepository swapEventRepo,
-                               SyncErrorRepository syncErrorRepo) {
+                               SyncErrorRepository syncErrorRepo,
+                               ScanEventWriter scanEventWriter) {
         this.eventDecoder = eventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
@@ -44,6 +47,7 @@ public class BlockScannerFactory {
         this.gmxPositionService = gmxPositionService;
         this.swapEventRepo = swapEventRepo;
         this.syncErrorRepo = syncErrorRepo;
+        this.scanEventWriter = scanEventWriter;
     }
 
     public List<BlockScanner> createAll(ChainProperties props) {
@@ -52,7 +56,7 @@ public class BlockScannerFactory {
             BlockScanner scanner = new BlockScanner(
                     cfg, eventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
                     meterRegistry, gmxHistoryRepo, gmxPositionService,
-                    swapEventRepo, syncErrorRepo);
+                    swapEventRepo, syncErrorRepo, scanEventWriter);
             scanners.add(scanner);
             log.info("Created BlockScanner for chain: {} (protocol={})", cfg.getName(), cfg.getProtocol());
         }
