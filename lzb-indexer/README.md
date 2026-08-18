@@ -206,6 +206,8 @@ Email: admin@admin.com / Password: admin
 
 ## Integration Tests (Anvil)
 
+> Actuator 监控端点默认启用 Basic Auth：`admin / admin123`（可用 `ACTUATOR_USERNAME` / `ACTUATOR_PASSWORD` 环境变量覆盖），`/actuator/health` 保持开放；WebSocket `/ws` 仅允许 `localhost` / `127.0.0.1` 来源。
+
 `mvn test` 包含 8 个集成测试（ERC20 / GMX），它们需要一个本地 Anvil 测试链：
 
 - Anvil 监听 `http://localhost:8545`，chain id `31337`

@@ -19,8 +19,18 @@ spring:
           order_inserts: true
   flyway:
     enabled: false
+  security:
+    user:
+      name: admin
+      password: admin123
 
 app:
   scanner:
     enabled: false
     fixed-rate-ms: 5000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus

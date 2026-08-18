@@ -58,5 +58,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_PASSWORD: postgres
+      ACTUATOR_USERNAME: ${ACTUATOR_USERNAME:-admin}
+      ACTUATOR_PASSWORD: ${ACTUATOR_PASSWORD:-admin123}
     ports:
       - "8080:8080"

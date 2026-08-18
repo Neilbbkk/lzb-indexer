@@ -7,6 +7,10 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: postgres
     password: ${DB_PASSWORD:postgres}
+  security:
+    user:
+      name: ${ACTUATOR_USERNAME:admin}
+      password: ${ACTUATOR_PASSWORD:admin123}
   jpa:
     hibernate:
       ddl-auto: validate
