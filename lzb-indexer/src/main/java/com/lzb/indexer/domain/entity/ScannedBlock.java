@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
  * 用途：reorg 检测——定期对比本地 hash 和链上 hash，不一致说明发生了链重组，触发回滚。
  */
 @Entity
+@IdClass(ScannedBlockId.class)
 @Table(name = "scanned_blocks")
 public class ScannedBlock {
 
@@ -23,6 +24,7 @@ public class ScannedBlock {
     private String blockHash;
 
     /** 链标识（如 arbitrum-gmx-vault） */
+    @Id
     @Column(name = "chain_name", nullable = false)
     private String chainName;
 
