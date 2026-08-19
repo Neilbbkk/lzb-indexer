@@ -1,4 +1,4 @@
-﻿# LZB Indexer
+# LZB Indexer
 
 [![Java](https://img.shields.io/badge/Java-8-orange)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-2.7.18-brightgreen)](https://spring.io/projects/spring-boot)
@@ -62,7 +62,7 @@ graph TB
 
 **Design decisions:**
 - **Event Sourcing** for GMX positions — raw events stored in `gmx_position_history`, current state computed by replay
-- **集中式解码** — EventDecoder 按协议分派（ERC20 / Uniswap V2 / GMX V2）
+- **Centralized decoding** - EventDecoder dispatches by protocol (ERC20 / Uniswap V2 / GMX V2)
 - **StaticEventPublisher** bridge — enables non-Spring beans (`BlockScanner`) to publish Spring ApplicationEvents
 - **Reorg detection** via `scanned_blocks` table (block hash comparison)
 - **RPC retry** with exponential backoff (1s → 2s → 4s, max 3 attempts)
@@ -84,7 +84,7 @@ graph TB
 ### Prerequisites
 - **Java 8+**, Maven 3.8+
 - **Docker Desktop** (for PostgreSQL, Prometheus, Grafana)
-- **Infura/Alchemy API key** (for Sepolia RPC)
+- **No API key needed** - public RPC endpoints (publicnode) by default; override via SEPOLIA_RPC_URL / ETHEREUM_RPC_URL / ARBITRUM_RPC_URL
 
 ### 1. Clone & Build
 
@@ -120,10 +120,10 @@ app:
 ### 4. Run
 
 ```bash
-java -Djava.net.preferIPv4Stack=true -jar target/lzb-indexer-1.0.0.jar
+java -jar target/lzb-indexer-1.0.0.jar
 ```
 
-> `-Djava.net.preferIPv4Stack=true` is **required** — Infura RPC times out on IPv6.
+> Optional: on IPv6-only networks add `-Djava.net.preferIPv4Stack=true` (run in cmd/bash; PowerShell mangles this flag).
 
 ### 5. Open Dashboard
 
