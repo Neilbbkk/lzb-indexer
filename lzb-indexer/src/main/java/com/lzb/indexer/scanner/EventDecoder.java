@@ -119,17 +119,6 @@ public class EventDecoder {
                 && POSITION_DECREASE_HASH.equals(logEntry.getTopics().get(1));
     }
 
-    /** Detect liquidation: DECREASE events carry an isLiquidation flag set to true. */
-    public boolean isLiquidatePositionEvent(Log logEntry) {
-        return false;
-    }
-
-    /** Decode a liquidation event; currently unsupported, returns null. */
-    public GmxPositionHistory decodeLiquidatePosition(Log logEntry, String chainName) {
-        log.debug("LiquidatePosition event detected but not yet supported, tx={}", logEntry.getTransactionHash());
-        return null;
-    }
-
     // ======================== GMX V2 Position Decoding ========================
 
     public GmxPositionHistory decodeIncreasePosition(Log logEntry, String chainName) {

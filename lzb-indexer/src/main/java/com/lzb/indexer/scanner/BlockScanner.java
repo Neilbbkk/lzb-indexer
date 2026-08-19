@@ -320,8 +320,6 @@ public class BlockScanner {
                     event = eventDecoder.decodeIncreasePosition(l, chainName);
                 } else if (eventDecoder.isDecreasePositionEvent(l)) {
                     event = eventDecoder.decodeDecreasePosition(l, chainName);
-                } else if (eventDecoder.isLiquidatePositionEvent(l)) {
-                    event = eventDecoder.decodeLiquidatePosition(l, chainName);
                 }
 
                 if (event == null) continue;
