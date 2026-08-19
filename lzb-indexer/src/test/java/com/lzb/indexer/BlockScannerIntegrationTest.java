@@ -5,14 +5,17 @@ import org.slf4j.LoggerFactory;
 
 import com.lzb.indexer.domain.entity.ScannedBlock;
 import com.lzb.indexer.domain.entity.TokenTransfer;
+import com.lzb.indexer.domain.entity.SyncCheckpoint;
 import com.lzb.indexer.domain.repository.ScannedBlockRepository;
 import com.lzb.indexer.domain.repository.TokenTransferRepository;
+import com.lzb.indexer.domain.repository.SyncCheckpointRepository;
 import com.lzb.indexer.scanner.BlockScanner;
 import com.lzb.indexer.scanner.ScannerScheduler;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -91,6 +94,12 @@ public class BlockScannerIntegrationTest {
     @Autowired
     private ScannedBlockRepository scannedBlockRepo; // 验证区块 hash 是否正确保存（reorg 检测用）
 
+    @Autowired
+    private SyncCheckpointRepository checkpointRepo; // 断言 checkpoint 回滚
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate; // 直改 scanned_blocks 模拟 reorg
+
     /** @BeforeEach 从 scheduler 获取，每个测试方法复用同一个 scanner 实例 */
     private BlockScanner blockScanner;
 
@@ -126,7 +135,7 @@ public class BlockScannerIntegrationTest {
         registry.add("app.chains[0].wallet-address",    () -> ANVIL_ADDRESS);
         registry.add("app.chains[0].start-block",       () -> "0");
         registry.add("app.chains[0].page-size",         () -> "100");   // 100 块/次，小批量便于测试
-        registry.add("app.chains[0].reorg-depth",       () -> "1");     // anvil 不回滚，深度设 1 即可
+        registry.add("app.chains[0].reorg-depth",       () -> "5");     // anvil 不回滚，深度设 1 即可
     }
 
     /**
@@ -423,5 +432,60 @@ public class BlockScannerIntegrationTest {
                 "应知道链的当前高度");
         assertEquals(CHAIN_NAME, blockScanner.getChainName(),
                 "链名应为 anvil");
+    }
+    // ======================== 测试 6：reorg 回滚 ========================
+
+    /**
+     * reorg 专项测试：篡改 scanned_blocks 里某块的 hash 模拟链重组后 DB 仍记旧分支 hash，
+     * 验证 verifyAndHandleReorg 检测到 hash 不一致时回滚该块及之后数据、重置 checkpoint。
+     */
+    @Test
+    @Order(6)
+    @DisplayName("reorg 时 block hash 不一致应回滚已存数据并重置 checkpoint")
+    void testReorgRollback() throws Exception {
+        String recipient = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
+        // 1) 发一笔 transfer(recipient, 100) 打包到新块，扫描入库
+        String transferData = "0xa9059cbb"
+                + "000000000000000000000000" + recipient.substring(2)
+                + "0000000000000000000000000000000000000000000000000000000000000064";
+        BigInteger nonce = web3j.ethGetTransactionCount(ANVIL_ADDRESS, DefaultBlockParameterName.LATEST).send().getTransactionCount();
+        RawTransaction rawTxn = RawTransaction.createTransaction(nonce, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT, contractAddress, BigInteger.ZERO, transferData);
+        EthSendTransaction sent = web3j.ethSendRawTransaction(Numeric.toHexString(TransactionEncoder.signMessage(rawTxn, credentials))).send();
+        assertFalse(sent.hasError(), "transfer tx failed: " + sent.getError());
+        Thread.sleep(500);
+        sendDummyEth();
+        Thread.sleep(300);
+        blockScanner.scan();
+        // 2) 定位 transfer 所在块 B，确认 checkpoint 停在 B
+        TokenTransfer tx = transferRepo.findByChainNameAndAddress(CHAIN_NAME, recipient.toLowerCase(), PageRequest.of(0, 20)).getContent().stream().filter(t -> t.getToAddress().equals(recipient.toLowerCase())).findFirst().orElse(null);
+        assertNotNull(tx, "transfer 应先入库");
+        long B = tx.getBlockNumber();
+        SyncCheckpoint cpBefore = checkpointRepo.findByChainNameAndContractAddress(CHAIN_NAME, contractAddress).orElseThrow(() -> new IllegalStateException("checkpoint missing"));
+        assertTrue(cpBefore.getLastScannedBlock() >= B, "前置: transfer 应已被扫描入库");
+        // 3) 篡改块 B 的 block_hash，模拟 reorg 后 DB 仍记旧分支 hash（直接 SQL 更新，绕开复合主键）
+        jdbcTemplate.update("UPDATE scanned_blocks SET block_hash = ? WHERE block_number = ? AND chain_name = ?",
+                "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", B, CHAIN_NAME);
+        // 验证篡改生效
+        ScannedBlock tampered = scannedBlockRepo.findAll().stream().filter(s -> s.getBlockNumber() == B).findFirst().orElseThrow(() -> new IllegalStateException("block B missing after tamper"));
+        assertEquals("0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef", tampered.getBlockHash(), "篡改后块 B 的 hash 应为错误值");
+        // 4) 推两块，让 chain tip 高于 checkpoint，确保 scan() 走到 verifyAndHandleReorg
+        sendDummyEth();
+        sendDummyEth();
+        Thread.sleep(300);
+        blockScanner.scan();
+        // 5) 断言回滚：checkpoint 重置 + 旧数据删除
+        SyncCheckpoint cpAfter = checkpointRepo.findByChainNameAndContractAddress(CHAIN_NAME, contractAddress).orElseThrow(() -> new IllegalStateException("checkpoint missing"));
+        assertEquals(B - 1, cpAfter.getLastScannedBlock(), "回滚后 checkpoint 应重置到 reorg 块之前");
+        List<TokenTransfer> after = transferRepo.findByChainNameAndAddress(CHAIN_NAME, recipient.toLowerCase(), PageRequest.of(0, 20)).getContent();
+        assertFalse(after.stream().anyMatch(t -> t.getBlockNumber() == B), "reorg 块的 transfer 应被回滚删除");
+        assertFalse(scannedBlockRepo.findAll().stream().anyMatch(s -> s.getBlockNumber() == B), "reorg 块应从 scanned_blocks 删除");
+        log.info("REORG TEST PASSED: rolled back to block {}", B - 1);
+    }
+
+    /** 发一笔无关 ETH 转账，把前一笔交易"推"进链上块 */
+    private void sendDummyEth() throws Exception {
+        BigInteger nonce = web3j.ethGetTransactionCount(ANVIL_ADDRESS, DefaultBlockParameterName.LATEST).send().getTransactionCount();
+        RawTransaction dummyTx = RawTransaction.createEtherTransaction(nonce, DefaultGasProvider.GAS_PRICE, DefaultGasProvider.GAS_LIMIT, "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", BigInteger.ONE);
+        web3j.ethSendRawTransaction(Numeric.toHexString(TransactionEncoder.signMessage(dummyTx, credentials))).send();
     }
 }
