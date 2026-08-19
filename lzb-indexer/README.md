@@ -206,20 +206,20 @@ Email: admin@admin.com / Password: admin
 
 ## Integration Tests (Anvil)
 
-> Actuator 监控端点默认启用 Basic Auth：`admin / admin123`（可用 `ACTUATOR_USERNAME` / `ACTUATOR_PASSWORD` 环境变量覆盖），`/actuator/health` 保持开放；WebSocket `/ws` 仅允许 `localhost` / `127.0.0.1` 来源。
+> Actuator endpoints are protected by Basic Auth (`admin / admin123`, overridable via `ACTUATOR_USERNAME` / `ACTUATOR_PASSWORD`); `/actuator/health` stays open. WebSocket `/ws` accepts only `localhost` / `127.0.0.1` origins.
 
-`mvn test` 包含 8 个集成测试（ERC20 / GMX），它们需要一个本地 Anvil 测试链：
+`mvn test` runs 8 integration tests (ERC20 / GMX) that require a local Anvil test chain:
 
-- Anvil 监听 `http://localhost:8545`，chain id `31337`
-- 每次跑集成测试前必须重启 Anvil，否则区块高度会累积，超过测试的扫描范围（page-size=100），导致扫不到新交易
+- Anvil listens on `http://localhost:8545`, chain id `31337`
+- Restart Anvil before every test run; otherwise the block height keeps accumulating past the scan window (page-size=100) and new transactions are not found
 
 ```powershell
-# 重启 Anvil（每次跑测试前执行）
+# Restart Anvil (run before each test run)
 Get-Process -Name anvil -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Process -FilePath 'D:\lzkcomp\foundry\anvil.exe' -ArgumentList '--port','8545','--chain-id','31337' -WindowStyle Hidden
 ```
 
-或者直接跑现成脚本（自动重启 Anvil + 编译 Solidity + 跑集成测试）：
+Or use the helper script (restarts Anvil + compiles Solidity + runs the integration tests):
 
 ```powershell
 powershell -File scripts/run-integration-test.ps1
