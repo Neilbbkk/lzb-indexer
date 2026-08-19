@@ -413,7 +413,10 @@ public class EventDecoder {
 
 
     /**
-     * ?? item key????????? slot0???<128 ? slot3+4 ??>=128 ? readString
+     * Reads a GMX EventLogData item key starting at {@code itemStart}. The first 32-byte
+     * slot decides the encoding: {@code >=10000} or {@code <=0} -> inline string in this
+     * slot (readInlineString); {@code <128} -> key length at itemStart+192 (slot3) and raw
+     * bytes at itemStart+256 (slot4); {@code >=128} -> dynamic string at itemStart+offset*2.
      */
     private static String readItemKey(String hex, int itemStart) {
         BigInteger firstSlot = bytesToBigInt(hex, itemStart);
