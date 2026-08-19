@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -22,8 +23,10 @@ public interface GmxPositionHistoryRepository extends JpaRepository<GmxPositionH
 
     boolean existsByTxHashAndLogIndexAndChainName(String txHash, Integer logIndex, String chainName);
 
+    @Transactional
     void deleteByChainNameAndBlockNumberGreaterThan(String chainName, Long blockNumber);
 
+    @Transactional
     void deleteByChainNameAndBlockNumberGreaterThanEqual(String chainName, Long blockNumber);
 
     long countByChainName(String chainName);

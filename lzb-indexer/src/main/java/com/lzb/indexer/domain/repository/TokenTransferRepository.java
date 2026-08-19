@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -24,8 +25,10 @@ public interface TokenTransferRepository extends JpaRepository<TokenTransfer, Lo
     List<TokenTransfer> findByChainNameAndBlockNumberAndLogIndexGreaterThan(
             String chainName, Long blockNumber, Integer logIndex);
 
+    @Transactional
     void deleteByChainNameAndBlockNumberGreaterThan(String chainName, Long blockNumber);
 
+    @Transactional
     void deleteByChainNameAndBlockNumberGreaterThanEqual(String chainName, Long blockNumber);
 
     boolean existsByTxHashAndLogIndexAndChainName(String txHash, Integer logIndex, String chainName);

@@ -3,6 +3,7 @@ package com.lzb.indexer.domain.repository;
 import com.lzb.indexer.domain.entity.GmxPosition;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -18,7 +19,9 @@ public interface GmxPositionRepository extends JpaRepository<GmxPosition, Long> 
 
     long countByChainName(String chainName);
 
+    @Transactional
     void deleteByChainName(String chainName);
 
+    @Transactional
     void deleteByChainNameAndPositionKey(String chainName, String positionKey);
 }

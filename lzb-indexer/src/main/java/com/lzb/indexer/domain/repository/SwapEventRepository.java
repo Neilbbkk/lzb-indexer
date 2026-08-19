@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -18,6 +19,7 @@ public interface SwapEventRepository extends JpaRepository<SwapEvent, Long> {
     boolean existsByTxHashAndLogIndexAndChainName(String txHash, Integer logIndex, String chainName);
 
     /** reorg 回滚时删除 >= 指定区块号的所有记录 */
+    @Transactional
     void deleteByChainNameAndBlockNumberGreaterThanEqual(String chainName, Long blockNumber);
 
     /** 按区块范围统计，用于数据校验 */
