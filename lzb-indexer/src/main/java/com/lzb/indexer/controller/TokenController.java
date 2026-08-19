@@ -12,7 +12,6 @@ import java.util.Map;
 public class TokenController {
 
     private final TokenService tokenService;
-    private static final String WALLET = "0x3642287697C85eEB038C04aA00Da55b059B00593";
 
     public TokenController(TokenService tokenService) {
         this.tokenService = tokenService;
@@ -34,11 +33,6 @@ public class TokenController {
         m.put("balance", bal);
         m.put("balanceFormatted", bal.divide(BigInteger.TEN.pow(18)));
         return m;
-    }
-
-    @GetMapping("/my-balance")
-    public Map<String, Object> getMyBalance() throws Exception {
-        return getBalance(WALLET);
     }
 
 }
