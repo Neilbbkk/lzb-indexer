@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 class BlockScannerTest {
 
     @Mock private EventDecoder eventDecoder;
+    @Mock private GmxEventDecoder gmxEventDecoder;
     @Mock private TokenTransferRepository transferRepo;
     @Mock private SyncCheckpointRepository checkpointRepo;
     @Mock private ScannedBlockRepository scannedBlockRepo;
@@ -53,7 +54,7 @@ class BlockScannerTest {
         cfg.setPageSize(2000);
         cfg.setReorgDepth(12);
 
-        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, transferRepo,
+        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, gmxEventDecoder, transferRepo,
                 checkpointRepo, scannedBlockRepo, meterRegistry,
                 gmxHistoryRepo, gmxPositionService, swapEventRepo, syncErrorRepo, scanEventWriter);
 
@@ -74,7 +75,7 @@ class BlockScannerTest {
         cfg.setPageSize(2000);
         cfg.setReorgDepth(12);
 
-        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, transferRepo,
+        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, gmxEventDecoder, transferRepo,
                 checkpointRepo, scannedBlockRepo, meterRegistry,
                 gmxHistoryRepo, gmxPositionService, swapEventRepo, syncErrorRepo, scanEventWriter);
 
@@ -93,7 +94,7 @@ class BlockScannerTest {
         cfg.setPageSize(2000);
         cfg.setReorgDepth(12);
 
-        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, transferRepo,
+        BlockScanner scanner = new BlockScanner(cfg, eventDecoder, gmxEventDecoder, transferRepo,
                 checkpointRepo, scannedBlockRepo, meterRegistry,
                 gmxHistoryRepo, gmxPositionService, swapEventRepo, syncErrorRepo, scanEventWriter);
 

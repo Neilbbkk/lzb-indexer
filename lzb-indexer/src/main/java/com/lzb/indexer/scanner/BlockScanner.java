@@ -48,6 +48,7 @@ public class BlockScanner {
 
     private final Web3j web3j;
     private final EventDecoder eventDecoder;
+    private final GmxEventDecoder gmxEventDecoder;
     private final TokenTransferRepository transferRepo;
     private final SyncCheckpointRepository checkpointRepo;
     private final ScannedBlockRepository scannedBlockRepo;
@@ -69,7 +70,7 @@ public class BlockScanner {
     private volatile long latestScannedBlock = 0;
     private volatile long chainTip = 0;
 
-    public BlockScanner(ChainConfig cfg, EventDecoder eventDecoder,
+    public BlockScanner(ChainConfig cfg, EventDecoder eventDecoder, GmxEventDecoder gmxEventDecoder,
                         TokenTransferRepository transferRepo,
                         SyncCheckpointRepository checkpointRepo,
                         ScannedBlockRepository scannedBlockRepo,
@@ -93,6 +94,7 @@ public class BlockScanner {
                 .build();
         this.web3j = Web3j.build(new HttpService(cfg.getRpcUrl(), httpClient));
         this.eventDecoder = eventDecoder;
+        this.gmxEventDecoder = gmxEventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
         this.scannedBlockRepo = scannedBlockRepo;
@@ -307,7 +309,7 @@ public class BlockScanner {
             Log l = (Log) lr.get();
             long bn = l.getBlockNumber().longValue();
 
-            if (!eventDecoder.isGmxV2Event(l)) continue;
+            if (!gmxEventDecoder.isGmxV2Event(l)) continue;
             gmxV2Match++;
             if (gmxV2Match <= 5) {
                 log.info("BlockScanner[{}] topic[0]={} topic[1]={}",
@@ -316,10 +318,10 @@ public class BlockScanner {
 
             try {
                 GmxPositionHistory event = null;
-                if (eventDecoder.isIncreasePositionEvent(l)) {
-                    event = eventDecoder.decodeIncreasePosition(l, chainName);
-                } else if (eventDecoder.isDecreasePositionEvent(l)) {
-                    event = eventDecoder.decodeDecreasePosition(l, chainName);
+                if (gmxEventDecoder.isIncreasePositionEvent(l)) {
+                    event = gmxEventDecoder.decodeIncreasePosition(l, chainName);
+                } else if (gmxEventDecoder.isDecreasePositionEvent(l)) {
+                    event = gmxEventDecoder.decodeDecreasePosition(l, chainName);
                 }
 
                 if (event == null) continue;

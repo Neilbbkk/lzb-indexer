@@ -18,6 +18,7 @@ public class BlockScannerFactory {
     private static final Logger log = LoggerFactory.getLogger(BlockScannerFactory.class);
 
     private final EventDecoder eventDecoder;
+    private final GmxEventDecoder gmxEventDecoder;
     private final TokenTransferRepository transferRepo;
     private final SyncCheckpointRepository checkpointRepo;
     private final ScannedBlockRepository scannedBlockRepo;
@@ -28,7 +29,7 @@ public class BlockScannerFactory {
     private final SyncErrorRepository syncErrorRepo;
     private final ScanEventWriter scanEventWriter;
 
-    public BlockScannerFactory(EventDecoder eventDecoder,
+    public BlockScannerFactory(EventDecoder eventDecoder, GmxEventDecoder gmxEventDecoder,
                                TokenTransferRepository transferRepo,
                                SyncCheckpointRepository checkpointRepo,
                                ScannedBlockRepository scannedBlockRepo,
@@ -39,6 +40,7 @@ public class BlockScannerFactory {
                                SyncErrorRepository syncErrorRepo,
                                ScanEventWriter scanEventWriter) {
         this.eventDecoder = eventDecoder;
+        this.gmxEventDecoder = gmxEventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
         this.scannedBlockRepo = scannedBlockRepo;
@@ -54,7 +56,7 @@ public class BlockScannerFactory {
         List<BlockScanner> scanners = new ArrayList<>();
         for (ChainProperties.ChainConfig cfg : props.getChains()) {
             BlockScanner scanner = new BlockScanner(
-                    cfg, eventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
+                    cfg, eventDecoder, gmxEventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
                     meterRegistry, gmxHistoryRepo, gmxPositionService,
                     swapEventRepo, syncErrorRepo, scanEventWriter);
             scanners.add(scanner);

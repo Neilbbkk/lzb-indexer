@@ -27,7 +27,7 @@ class EventDecoderTest {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EventDecoderTest.class);
 
-    private final EventDecoder decoder = new EventDecoder();
+    private final GmxEventDecoder decoder = new GmxEventDecoder();
 
     /** emitEventLog 签名哈希 */
     private static final String EMIT_EVENT_LOG_HASH =
