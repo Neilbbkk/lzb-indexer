@@ -17,7 +17,8 @@ public class BlockScannerFactory {
 
     private static final Logger log = LoggerFactory.getLogger(BlockScannerFactory.class);
 
-    private final EventDecoder eventDecoder;
+    private final Erc20TransferDecoder erc20Decoder;
+    private final UniswapSwapDecoder uniswapDecoder;
     private final GmxEventDecoder gmxEventDecoder;
     private final TokenTransferRepository transferRepo;
     private final SyncCheckpointRepository checkpointRepo;
@@ -29,7 +30,7 @@ public class BlockScannerFactory {
     private final SyncErrorRepository syncErrorRepo;
     private final ScanEventWriter scanEventWriter;
 
-    public BlockScannerFactory(EventDecoder eventDecoder, GmxEventDecoder gmxEventDecoder,
+    public BlockScannerFactory(Erc20TransferDecoder erc20Decoder, UniswapSwapDecoder uniswapDecoder, GmxEventDecoder gmxEventDecoder,
                                TokenTransferRepository transferRepo,
                                SyncCheckpointRepository checkpointRepo,
                                ScannedBlockRepository scannedBlockRepo,
@@ -39,7 +40,8 @@ public class BlockScannerFactory {
                                SwapEventRepository swapEventRepo,
                                SyncErrorRepository syncErrorRepo,
                                ScanEventWriter scanEventWriter) {
-        this.eventDecoder = eventDecoder;
+        this.erc20Decoder = erc20Decoder;
+        this.uniswapDecoder = uniswapDecoder;
         this.gmxEventDecoder = gmxEventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
@@ -56,7 +58,7 @@ public class BlockScannerFactory {
         List<BlockScanner> scanners = new ArrayList<>();
         for (ChainProperties.ChainConfig cfg : props.getChains()) {
             BlockScanner scanner = new BlockScanner(
-                    cfg, eventDecoder, gmxEventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
+                    cfg, erc20Decoder, uniswapDecoder, gmxEventDecoder, transferRepo, checkpointRepo, scannedBlockRepo,
                     meterRegistry, gmxHistoryRepo, gmxPositionService,
                     swapEventRepo, syncErrorRepo, scanEventWriter);
             scanners.add(scanner);

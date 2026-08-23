@@ -1,16 +1,9 @@
 package com.lzb.indexer.scanner;
 
-import com.lzb.indexer.domain.entity.TokenTransfer;
 import com.lzb.indexer.domain.entity.GmxPositionHistory;
-import com.lzb.indexer.domain.entity.SwapEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.web3j.abi.EventEncoder;
-import org.web3j.abi.FunctionReturnDecoder;
-import org.web3j.abi.TypeReference;
-import org.web3j.abi.datatypes.*;
-import org.web3j.abi.datatypes.generated.*;
 import org.web3j.protocol.core.methods.response.Log;
 
 import java.math.BigInteger;

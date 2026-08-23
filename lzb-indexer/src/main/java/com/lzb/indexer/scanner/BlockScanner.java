@@ -47,7 +47,8 @@ public class BlockScanner {
     private final long startBlock;
 
     private final Web3j web3j;
-    private final EventDecoder eventDecoder;
+    private final Erc20TransferDecoder erc20Decoder;
+    private final UniswapSwapDecoder uniswapDecoder;
     private final GmxEventDecoder gmxEventDecoder;
     private final TokenTransferRepository transferRepo;
     private final SyncCheckpointRepository checkpointRepo;
@@ -70,7 +71,7 @@ public class BlockScanner {
     private volatile long latestScannedBlock = 0;
     private volatile long chainTip = 0;
 
-    public BlockScanner(ChainConfig cfg, EventDecoder eventDecoder, GmxEventDecoder gmxEventDecoder,
+    public BlockScanner(ChainConfig cfg, Erc20TransferDecoder erc20Decoder, UniswapSwapDecoder uniswapDecoder, GmxEventDecoder gmxEventDecoder,
                         TokenTransferRepository transferRepo,
                         SyncCheckpointRepository checkpointRepo,
                         ScannedBlockRepository scannedBlockRepo,
@@ -93,7 +94,8 @@ public class BlockScanner {
                 .retryOnConnectionFailure(true)
                 .build();
         this.web3j = Web3j.build(new HttpService(cfg.getRpcUrl(), httpClient));
-        this.eventDecoder = eventDecoder;
+        this.erc20Decoder = erc20Decoder;
+        this.uniswapDecoder = uniswapDecoder;
         this.gmxEventDecoder = gmxEventDecoder;
         this.transferRepo = transferRepo;
         this.checkpointRepo = checkpointRepo;
@@ -219,7 +221,7 @@ public class BlockScanner {
                 new DefaultBlockParameterNumber(fromBlock),
                 new DefaultBlockParameterNumber(toBlock),
                 contractAddress);
-        filter.addOptionalTopics(EventDecoder.getTransferEventHash());
+        filter.addOptionalTopics(Erc20TransferDecoder.getTransferEventHash());
 
         EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
         List<EthLog.LogResult> logResults = ethLog.getLogs();
@@ -228,7 +230,7 @@ public class BlockScanner {
         for (EthLog.LogResult lr : logResults) {
             Log l = (Log) lr.get();
             try {
-                TokenTransfer t = eventDecoder.decode(l, chainName);
+                TokenTransfer t = erc20Decoder.decode(l, chainName);
                 if (t != null) {
                     batch.add(t);
                 }
@@ -257,7 +259,7 @@ public class BlockScanner {
                 new DefaultBlockParameterNumber(fromBlock),
                 new DefaultBlockParameterNumber(toBlock),
                 contractAddress);
-        filter.addOptionalTopics(EventDecoder.getSwapEventHash());
+        filter.addOptionalTopics(UniswapSwapDecoder.getSwapEventHash());
 
         EthLog ethLog = retryRpc(() -> web3j.ethGetLogs(filter).send(), "eth_getLogs");
         List<EthLog.LogResult> logResults = ethLog.getLogs();
@@ -267,7 +269,7 @@ public class BlockScanner {
             Log l = (Log) lr.get();
             long bn = l.getBlockNumber().longValue();
             try {
-                SwapEvent swap = eventDecoder.decodeSwap(l, chainName);
+                SwapEvent swap = uniswapDecoder.decodeSwap(l, chainName);
                 if (swap != null) {
                     batch.add(swap);
                 }
