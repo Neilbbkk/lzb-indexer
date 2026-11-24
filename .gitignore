@@ -1,2 +1,19 @@
 # 临时备份目录（不入库）
 .python-removed-2026-08-08/
+
+# career/interview docs (private, not for public repo)
+career/
+
+# standalone projects: each has its own git repo, must not enter lzb-indexer
+dsh-fatfish/
+lzb-trading/
+us-strategy-monitor/
+
+# local scratch: headless-Chrome debug output, plugin dev drafts, third-party copy
+chart_check/
+dsh-fatfish-dev/
+dsh-whale-pet/
+asu-skills-repo/
+
+# personal document (public repo)
+梁智康的简历2026-2(1)(1).pdf

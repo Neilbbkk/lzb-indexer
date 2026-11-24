@@ -53,3 +53,30 @@ src/test/solidity/broadcast/
 
 # 个人路线图（含钱包、薪资等敏感信息，不入库）
 ROADMAP.md
+
+# ---------------------------------------------------------------------------
+# 本地资料（不属于项目本体，公开仓库里不出现）
+# ---------------------------------------------------------------------------
+
+# Finematics 文章/字幕抓取与提取产物（写学习笔记时的中间文件）
+_*.html
+_*.vtt
+_*.txt
+_*.xml
+_extract*.py
+
+# 学习笔记 / 博客草稿 / 面试题
+学习笔记.md
+blog-gmx-eventemitter-abi.md
+docs/web3-interview-notes.md
+
+# 求职数据（爬取的 JD、精选岗位表、爬虫脚本）
+README_JOBS.md
+java_backend_highlights.md
+web3career_jobs.*
+web3_transition_jobs.*
+dejob_*
+scrape_*.py
+
+# 简历源文件与导出（个人隐私）
+resume/
